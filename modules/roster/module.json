@@ -1,0 +1,10 @@
+{
+  "name": "roster",
+  "version": "0.0.0",
+  "status": "planned",
+  "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+  "useWhen": ["Show a team or leadership page", "Hand off a role to next year's exec"],
+  "provides": { "schemas": ["Member"], "exports": [], "migrations": [] },
+  "requires": [],
+  "config": {}
+}

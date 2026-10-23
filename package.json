@@ -1,0 +1,27 @@
+{
+  "name": "clubkit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "An agent-first monorepo of composable building blocks for running a student club.",
+  "type": "module",
+  "packageManager": "pnpm@11.12.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "clubkit": "tsx packages/cli/src/index.ts",
+    "catalog": "tsx packages/cli/src/index.ts catalog",
+    "validate": "tsx packages/cli/src/index.ts validate",
+    "verify": "tsx packages/cli/src/index.ts verify",
+    "mcp": "tsx packages/mcp/src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "pnpm typecheck && pnpm validate && pnpm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

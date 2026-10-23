@@ -1,0 +1,10 @@
+{
+  "name": "site-core",
+  "version": "0.0.0",
+  "status": "planned",
+  "summary": "Club website shell: layout, theme tokens, and standard pages (home, about, team, join).",
+  "useWhen": ["Start a website for a new club", "Change a club site's theme or navigation"],
+  "provides": { "schemas": [], "exports": [], "migrations": [] },
+  "requires": [],
+  "config": {}
+}

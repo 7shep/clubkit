@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "clubkit": {
+      "command": "pnpm",
+      "args": ["--silent", "mcp"]
+    }
+  }
+}

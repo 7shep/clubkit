@@ -1,0 +1,10 @@
+{
+  "name": "sponsors",
+  "version": "0.0.0",
+  "status": "planned",
+  "summary": "Sponsor listings with tiers and logos for club websites and sponsorship packages.",
+  "useWhen": ["Show sponsors on a club site", "Track sponsor tiers"],
+  "provides": { "schemas": ["Sponsor"], "exports": [], "migrations": [] },
+  "requires": [],
+  "config": {}
+}

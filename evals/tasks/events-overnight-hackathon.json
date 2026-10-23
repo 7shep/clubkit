@@ -1,0 +1,6 @@
+{
+  "id": "events-overnight-hackathon",
+  "prompt": "Our club is running a 24-hour hackathon starting 2026-11-14 at 10:00 in Mitchell Hall, capped at 150 people. Add a test to the events module proving the calendar file for this event ends at the right date and time, and make sure it passes.",
+  "modules": ["events"],
+  "checks": ["pnpm verify events", "pnpm typecheck"]
+}

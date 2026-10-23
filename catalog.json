@@ -1,0 +1,82 @@
+{
+  "generatedBy": "pnpm catalog — do not edit by hand",
+  "modules": [
+    {
+      "name": "applications",
+      "status": "experimental",
+      "version": "0.1.0",
+      "summary": "Membership and hiring applications: validation, a review pipeline with enforced status transitions, and private storage.",
+      "useWhen": [
+        "Open recruitment or hiring for a club",
+        "Validate an application submitted through a form",
+        "Move an applicant through review, interview, and decision",
+        "Summarize where applicants are in the pipeline"
+      ],
+      "requires": [],
+      "schemas": [
+        "Application"
+      ],
+      "path": "modules/applications"
+    },
+    {
+      "name": "events",
+      "status": "experimental",
+      "version": "0.1.0",
+      "summary": "Club events: storage, upcoming-event queries, RSVP capacity checks, and calendar (.ics) export.",
+      "useWhen": [
+        "Add, list, or publish club events",
+        "Show upcoming events on a club site",
+        "Check whether an event has RSVP capacity left",
+        "Give members a calendar file for an event"
+      ],
+      "requires": [],
+      "schemas": [
+        "Event"
+      ],
+      "path": "modules/events"
+    },
+    {
+      "name": "roster",
+      "status": "planned",
+      "version": "0.0.0",
+      "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+      "useWhen": [
+        "Show a team or leadership page",
+        "Hand off a role to next year's exec"
+      ],
+      "requires": [],
+      "schemas": [
+        "Member"
+      ],
+      "path": "modules/roster"
+    },
+    {
+      "name": "site-core",
+      "status": "planned",
+      "version": "0.0.0",
+      "summary": "Club website shell: layout, theme tokens, and standard pages (home, about, team, join).",
+      "useWhen": [
+        "Start a website for a new club",
+        "Change a club site's theme or navigation"
+      ],
+      "requires": [],
+      "schemas": [],
+      "path": "modules/site-core"
+    },
+    {
+      "name": "sponsors",
+      "status": "planned",
+      "version": "0.0.0",
+      "summary": "Sponsor listings with tiers and logos for club websites and sponsorship packages.",
+      "useWhen": [
+        "Show sponsors on a club site",
+        "Track sponsor tiers"
+      ],
+      "requires": [],
+      "schemas": [
+        "Sponsor"
+      ],
+      "path": "modules/sponsors"
+    }
+  ]
+}

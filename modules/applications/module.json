@@ -1,0 +1,30 @@
+{
+  "name": "applications",
+  "version": "0.1.0",
+  "status": "experimental",
+  "summary": "Membership and hiring applications: validation, a review pipeline with enforced status transitions, and private storage.",
+  "useWhen": [
+    "Open recruitment or hiring for a club",
+    "Validate an application submitted through a form",
+    "Move an applicant through review, interview, and decision",
+    "Summarize where applicants are in the pipeline"
+  ],
+  "provides": {
+    "schemas": ["Application"],
+    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+    "migrations": ["migrations/0001_applications.sql"]
+  },
+  "requires": [],
+  "config": {
+    "deadline": {
+      "type": "string",
+      "description": "ISO datetime after which new applications are refused"
+    },
+    "resumeMaxBytes": {
+      "type": "number",
+      "description": "Largest accepted resume upload",
+      "default": 8388608
+    }
+  },
+  "verify": "pnpm vitest run modules/applications"
+}

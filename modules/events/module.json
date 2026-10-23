@@ -1,0 +1,26 @@
+{
+  "name": "events",
+  "version": "0.1.0",
+  "status": "experimental",
+  "summary": "Club events: storage, upcoming-event queries, RSVP capacity checks, and calendar (.ics) export.",
+  "useWhen": [
+    "Add, list, or publish club events",
+    "Show upcoming events on a club site",
+    "Check whether an event has RSVP capacity left",
+    "Give members a calendar file for an event"
+  ],
+  "provides": {
+    "schemas": ["Event"],
+    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
+    "migrations": ["migrations/0001_events.sql"]
+  },
+  "requires": [],
+  "config": {
+    "timezone": {
+      "type": "string",
+      "description": "IANA timezone the club's event times are written in",
+      "default": "America/Toronto"
+    }
+  },
+  "verify": "pnpm vitest run modules/events"
+}
