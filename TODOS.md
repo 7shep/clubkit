@@ -10,9 +10,9 @@ marketing, sponsors, and development when it's needed.
 
 | Layer | What it is | Where it lives | Today |
 |---|---|---|---|
-| **Modules** | What the club's data is and the rules it follows | `modules/<name>` | `events`, `applications` work; `roster`, `sponsors`, `site-core` planned |
-| **Integrations** | How clubkit touches the world: email, calendar, Supabase, social | `integrations/<name>` | None |
-| **Workflows** | What an agent runs end to end: "close recruitment", "hand off VP Events" | `skills/` + workflow functions | Two playbooks, no automation |
+| **Modules** | What the club's data is and the rules it follows | `modules/<name>` | `events`, `applications`, `outbox` work; `roster`, `sponsors`, `site-core` planned |
+| **Integrations** | How clubkit touches the world: email, calendar, Supabase, social | `integrations/<name>` | Email contract and a fake (`modules/outbox`); no real provider |
+| **Workflows** | What an agent runs end to end: "close recruitment", "hand off VP Events" | `skills/` + workflow functions | Three playbooks; `close-recruitment` drafts decision emails |
 | **Club config** | One club's name, timezone, positions, templates, approvers, branding | `club.config.json` | None |
 
 Every workflow follows the same shape: **work out what's needed → draft →
@@ -21,11 +21,13 @@ applicant, a sponsor, the public) is drafted first and sent only after a human
 approves, and every send is logged so a re-run never repeats it. That rule is
 what makes it safe to hand an agent the club's inbox.
 
-**Where it stands (2026-10-22):** two working modules, an MCP server, a CLI
-and manifest validator, two playbooks, and an eval runner with 16 tasks
-(sanity: noop 0/32, reference 32/32). The first Sonnet run scored 16/16
-clubkit vs 15/16 baseline: no meaningful gap yet (`evals/RESULTS.md`). No integrations, workflows, or club config yet. No club
-runs on it yet; QWeb is the first target.
+**Where it stands (2026-10-23):** three working modules, an MCP server, a CLI
+and manifest validator, three playbooks, and an eval runner with 24 tasks. The
+first Sonnet run scored 16/16 clubkit vs 15/16 baseline: no meaningful gap yet
+(`evals/RESULTS.md`). The first workflow slice is in: `modules/outbox` (draft →
+approve → send once) and `pnpm clubkit close-recruitment`, with a
+`close-recruitment` eval scored on the outbox. No real email provider or club
+config yet. No club runs on it yet; QWeb is the first target.
 
 Work top to bottom. Each step is ordered by tedium × frequency × what's coming up
 in the club year.
