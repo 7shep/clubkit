@@ -1,0 +1,30 @@
+diff --git a/data/applications.json b/data/applications.json
+index e6e4a9b..b37b8aa 100644
+--- a/data/applications.json
++++ b/data/applications.json
+@@ -95,7 +95,7 @@
+       "why": "I want to help Greta build things."
+     },
+     "consent": true,
+-    "status": "interview"
++    "status": "accepted"
+   },
+   {
+     "id": "00000000-0000-4000-8000-000000000008",
+@@ -151,7 +151,7 @@
+       "why": "I want to help Kalinda build things."
+     },
+     "consent": true,
+-    "status": "reviewing"
++    "status": "rejected"
+   },
+   {
+     "id": "00000000-0000-4000-8000-00000000000c",
+@@ -193,6 +193,6 @@
+       "why": "I want to help Nikolai build things."
+     },
+     "consent": true,
+-    "status": "submitted"
++    "status": "rejected"
+   }
+ ]

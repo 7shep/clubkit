@@ -1,0 +1,181 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..686c8b6 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -35,6 +35,21 @@
+       ],
+       "path": "modules/events"
+     },
++    {
++      "name": "newsletter",
++      "status": "experimental",
++      "version": "0.1.0",
++      "summary": "Newsletter signups: validate a name and email, ignore repeat signups, and store subscribers privately.",
++      "useWhen": [
++        "Add a newsletter signup box to a club site",
++        "Collect emails for club announcements"
++      ],
++      "requires": [],
++      "schemas": [
++        "Subscriber"
++      ],
++      "path": "modules/newsletter"
++    },
+     {
+       "name": "roster",
+       "status": "planned",
+diff --git a/modules/newsletter/MODULE.md b/modules/newsletter/MODULE.md
+new file mode 100644
+index 0000000..b3befe8
+--- /dev/null
++++ b/modules/newsletter/MODULE.md
+@@ -0,0 +1,26 @@
++# newsletter
++
++Newsletter signups: validate a name and email, ignore repeat signups, and store
++subscribers privately.
++
++## Use it for
++
++- Handling the signup form: `subscribe({ name, email }, existing)` returns the
++  updated subscriber list, unchanged if that email is already subscribed.
++
++## Contract
++
++Shape: `Subscriber` from `@clubkit/schemas`. Emails are trimmed and lowercased.
++
++Storage: `migrations/0001_newsletter.sql` creates `public.newsletter_subscribers`.
++Subscribers are personal data: RLS is on with no policies, so signups go through
++a server route using the service role, and nobody can read the list with the anon key.
++
++## Rules for agents
++
++- Never expose the subscriber list to the browser or the anon key.
++- After changing this module, run `pnpm verify newsletter`.
++
++## Not yet included
++
++Unsubscribe links, double opt-in, and sending.
+diff --git a/modules/newsletter/migrations/0001_newsletter.sql b/modules/newsletter/migrations/0001_newsletter.sql
+new file mode 100644
+index 0000000..768aa5e
+--- /dev/null
++++ b/modules/newsletter/migrations/0001_newsletter.sql
+@@ -0,0 +1,9 @@
++-- Subscribers are personal data: RLS is on with no policies, so only the service role can read or write.
++create table if not exists public.newsletter_subscribers (
++  id uuid primary key default gen_random_uuid(),
++  name text not null,
++  email text not null unique,
++  subscribed_at timestamptz not null default now()
++);
++
++alter table public.newsletter_subscribers enable row level security;
+diff --git a/modules/newsletter/module.json b/modules/newsletter/module.json
+new file mode 100644
+index 0000000..0b35b45
+--- /dev/null
++++ b/modules/newsletter/module.json
+@@ -0,0 +1,15 @@
++{
++  "name": "newsletter",
++  "version": "0.1.0",
++  "status": "experimental",
++  "summary": "Newsletter signups: validate a name and email, ignore repeat signups, and store subscribers privately.",
++  "useWhen": ["Add a newsletter signup box to a club site", "Collect emails for club announcements"],
++  "provides": {
++    "schemas": ["Subscriber"],
++    "exports": ["subscribe"],
++    "migrations": ["migrations/0001_newsletter.sql"]
++  },
++  "requires": [],
++  "config": {},
++  "verify": "pnpm vitest run modules/newsletter"
++}
+diff --git a/modules/newsletter/package.json b/modules/newsletter/package.json
+new file mode 100644
+index 0000000..7347388
+--- /dev/null
++++ b/modules/newsletter/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "@clubkit/newsletter",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "main": "src/index.ts",
++  "dependencies": {
++    "@clubkit/schemas": "workspace:*"
++  }
++}
+diff --git a/modules/newsletter/src/index.ts b/modules/newsletter/src/index.ts
+new file mode 100644
+index 0000000..25ee314
+--- /dev/null
++++ b/modules/newsletter/src/index.ts
+@@ -0,0 +1,8 @@
++import { SubscriberSchema, type Subscriber } from "@clubkit/schemas";
++
++/** Validate a signup and add it to `existing`. A repeat signup (same email, any case) changes nothing. */
++export function subscribe(input: unknown, existing: Subscriber[]): Subscriber[] {
++  const subscriber = SubscriberSchema.parse(input);
++  if (existing.some((s) => s.email.toLowerCase() === subscriber.email)) return existing;
++  return [...existing, subscriber];
++}
+diff --git a/modules/newsletter/src/newsletter.test.ts b/modules/newsletter/src/newsletter.test.ts
+new file mode 100644
+index 0000000..94c582e
+--- /dev/null
++++ b/modules/newsletter/src/newsletter.test.ts
+@@ -0,0 +1,11 @@
++import { describe, expect, it } from "vitest";
++import { subscribe } from "./index";
++
++describe("newsletter", () => {
++  it("adds new subscribers and ignores repeats", () => {
++    const one = subscribe({ name: "Ana", email: "Ana@Example.com " }, []);
++    expect(one).toEqual([{ name: "Ana", email: "ana@example.com" }]);
++    expect(subscribe({ name: "Ana again", email: "ana@example.com" }, one)).toBe(one);
++    expect(() => subscribe({ name: "", email: "nope" }, [])).toThrow();
++  });
++});
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..8c4dcfc 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -66,11 +66,18 @@ export const SponsorSchema = z.object({
+ });
+ export type Sponsor = z.infer<typeof SponsorSchema>;
+ 
++export const SubscriberSchema = z.object({
++  name: z.string().trim().min(1),
++  email: z.string().trim().toLowerCase().email(),
++});
++export type Subscriber = z.infer<typeof SubscriberSchema>;
++
+ /** Registry used by manifests: a module declares the schemas it provides by these names. */
+ export const sharedSchemas = {
+   Member: MemberSchema,
+   Event: EventSchema,
+   Application: ApplicationSchema,
+   Sponsor: SponsorSchema,
++  Subscriber: SubscriberSchema,
+ } as const;
+ export type SharedSchemaName = keyof typeof sharedSchemas;
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a232741..d7a32af 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -33,6 +33,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/schemas
+ 
++  modules/newsletter:
++    dependencies:
++      '@clubkit/schemas':
++        specifier: workspace:*
++        version: link:../../packages/schemas
++
+   packages/catalog:
+     dependencies:
+       '@clubkit/schemas':

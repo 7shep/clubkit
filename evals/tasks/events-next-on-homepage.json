@@ -1,0 +1,7 @@
+{
+  "id": "events-next-on-homepage",
+  "prompt": "Our homepage should show the next 3 events. Add `nextEvents(events, now, count)` to the events module for the site to call, where `now` is the current time as a `Date`. Our site is hosted on a server that runs in UTC.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck"],
+  "tags": ["hard", "needs:code", "needs:guidance"]
+}

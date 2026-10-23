@@ -1,0 +1,145 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..22d8d00 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -31,7 +31,8 @@
+       ],
+       "requires": [],
+       "schemas": [
+-        "Event"
++        "Event",
++        "CheckIn"
+       ],
+       "path": "modules/events"
+     },
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..be60c68 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -7,6 +7,7 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ - Adding or publishing an event (validate with `parseEvent` first).
+ - Showing "what's next" on a club site (`upcomingEvents(events, today)`).
+ - Checking whether an event is full (`rsvpSpotsLeft(event, rsvpCount)`).
++- Recording attendance at the door (`checkIn(event, existing, { name, email })`).
+ - Giving members an "Add to calendar" file (`eventToIcs(event, timezone)`).
+ 
+ ## Contract
+@@ -17,6 +18,8 @@ Shape: `Event` from `@clubkit/schemas`. Dates are `YYYY-MM-DD`; start times are
+ 
+ Storage: `migrations/0001_events.sql` creates `public.events` with public read
+ access. Only the service role can write, so publishing must happen server-side.
++`migrations/0002_event_check_ins.sql` creates `public.event_check_ins`. Check-ins
++hold names and emails, so the table has RLS with no policies: service role only.
+ 
+ ## Rules for agents
+ 
+diff --git a/modules/events/migrations/0002_event_check_ins.sql b/modules/events/migrations/0002_event_check_ins.sql
+new file mode 100644
+index 0000000..3d546cf
+--- /dev/null
++++ b/modules/events/migrations/0002_event_check_ins.sql
+@@ -0,0 +1,12 @@
++-- Who attended each event. Check-ins hold names and emails: RLS is on with no
++-- policies, so only the service role can read or write.
++create table if not exists public.event_check_ins (
++  id uuid primary key default gen_random_uuid(),
++  event_id uuid not null references public.events (id) on delete cascade,
++  name text not null,
++  email text not null,
++  checked_in_at timestamptz not null default now(),
++  unique (event_id, email)
++);
++
++alter table public.event_check_ins enable row level security;
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..f691636 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -10,9 +10,9 @@
+     "Give members a calendar file for an event"
+   ],
+   "provides": {
+-    "schemas": ["Event"],
+-    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
+-    "migrations": ["migrations/0001_events.sql"]
++    "schemas": ["Event", "CheckIn"],
++    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "checkIn", "eventToIcs"],
++    "migrations": ["migrations/0001_events.sql", "migrations/0002_event_check_ins.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..7241495 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Event } from "@clubkit/schemas";
+-import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
++import { checkIn, eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
+ 
+ const base: Event = {
+   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+@@ -32,6 +32,11 @@ describe("events", () => {
+     expect(rsvpSpotsLeft({ ...base, rsvpCap: 100 }, 120)).toBe(0);
+   });
+ 
++  it("counts each person's check-in once", () => {
++    const once = checkIn(base, [], { name: "Ana", email: "ana@example.com" });
++    expect(checkIn(base, once, { name: "Ana", email: "ANA@example.com" })).toHaveLength(1);
++  });
++
+   it("exports timed, overnight, and all-day events to iCalendar", () => {
+     const timed = eventToIcs({ ...base, startTime: "19:00", durationMinutes: 90, location: "Goodwin Hall, Room 247" });
+     expect(timed).toContain("DTSTART;TZID=America/Toronto:20261105T190000");
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..c948d39 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -1,4 +1,4 @@
+-import { EventSchema, type Event } from "@clubkit/schemas";
++import { CheckInSchema, EventSchema, type CheckIn, type Event } from "@clubkit/schemas";
+ 
+ /** Validate untrusted input (form data, agent output, a database row) into an Event. Throws ZodError on bad input. */
+ export function parseEvent(input: unknown): Event {
+@@ -18,6 +18,14 @@ export function rsvpSpotsLeft(event: Event, rsvpCount: number): number | null {
+   return Math.max(0, event.rsvpCap - rsvpCount);
+ }
+ 
++/** Record someone arriving at `event`. Checking in twice (same email, any case) counts once. */
++export function checkIn(event: Event, existing: CheckIn[], person: { name: string; email: string }): CheckIn[] {
++  const entry = CheckInSchema.parse({ ...person, eventId: event.id });
++  const email = entry.email.toLowerCase();
++  if (existing.some((c) => c.eventId === event.id && c.email.toLowerCase() === email)) return existing;
++  return [...existing, entry];
++}
++
+ const escapeIcs = (value: string) =>
+   value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+ 
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..d0c9c26 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -30,6 +30,13 @@ export const EventSchema = z.object({
+ });
+ export type Event = z.infer<typeof EventSchema>;
+ 
++export const CheckInSchema = z.object({
++  eventId: z.string().uuid(),
++  name: z.string().min(1),
++  email: z.string().email(),
++});
++export type CheckIn = z.infer<typeof CheckInSchema>;
++
+ export const ApplicationStatusSchema = z.enum([
+   "submitted",
+   "reviewing",
+@@ -70,6 +77,7 @@ export type Sponsor = z.infer<typeof SponsorSchema>;
+ export const sharedSchemas = {
+   Member: MemberSchema,
+   Event: EventSchema,
++  CheckIn: CheckInSchema,
+   Application: ApplicationSchema,
+   Sponsor: SponsorSchema,
+ } as const;

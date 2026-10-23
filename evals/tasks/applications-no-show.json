@@ -1,0 +1,7 @@
+{
+  "id": "applications-no-show",
+  "prompt": "Some applicants never show up to their interview. Right now we have to reject them, which messes up our numbers. We want to mark them as a no-show instead and see how many no-shows we had.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck", "pnpm validate"],
+  "tags": ["hard", "needs:code", "needs:guidance"]
+}

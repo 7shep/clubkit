@@ -1,0 +1,188 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..593d046 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -37,12 +37,13 @@
+     },
+     {
+       "name": "roster",
+-      "status": "planned",
+-      "version": "0.0.0",
++      "status": "experimental",
++      "version": "0.1.0",
+       "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+       "useWhen": [
+         "Show a team or leadership page",
+-        "Hand off a role to next year's exec"
++        "Hand off a role to next year's exec",
++        "Store the club's member list"
+       ],
+       "requires": [],
+       "schemas": [
+diff --git a/modules/roster/MODULE.md b/modules/roster/MODULE.md
+index e7f0359..c58950a 100644
+--- a/modules/roster/MODULE.md
++++ b/modules/roster/MODULE.md
+@@ -1,14 +1,27 @@
+ # roster
+ 
+-**Status: planned.** Nothing here is implemented yet; do not import it.
++Members, roles, and exec handoff: who is in the club, what they do, and what the
++next exec needs to know.
+ 
+-Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.
++## Use it for
+ 
+-## Extraction source
++- Rendering a team page: `teamPage(members)` returns members sorted by name
++  with `email` removed.
+ 
+-QWeb's `team_members` table (role and person details migrations).
++## Contract
+ 
+-## Before building
++Shape: `Member` from `@clubkit/schemas`.
+ 
+-Follow `skills/add-a-module.md`, then change `status` to `experimental` and
+-add a `verify` command.
++Storage: `migrations/0001_members.sql` creates `public.members`. Anyone can read
++the team page columns, but `email` is not granted to `anon` or `authenticated`,
++so only the service role can see emails.
++
++## Rules for agents
++
++- Emails are personal data. Never send them to the browser; pass members through
++  `teamPage` before rendering, and never `select *` with the anon key.
++- After changing this module, run `pnpm verify roster`.
++
++## Not yet included
++
++Exec handoff and term history.
+diff --git a/modules/roster/migrations/0001_members.sql b/modules/roster/migrations/0001_members.sql
+new file mode 100644
+index 0000000..c689c91
+--- /dev/null
++++ b/modules/roster/migrations/0001_members.sql
+@@ -0,0 +1,25 @@
++-- Generalized from QWeb's team_members table. The team page is public; emails are not.
++create table if not exists public.members (
++  id uuid primary key default gen_random_uuid(),
++  full_name text not null,
++  pronouns text,
++  email text not null unique,
++  role text not null,
++  team text,
++  joined_on date,
++  linkedin_url text,
++  github_url text,
++  created_at timestamptz not null default now()
++);
++
++alter table public.members enable row level security;
++
++create policy "Team page is publicly readable"
++  on public.members for select
++  to anon, authenticated
++  using (true);
++
++-- Column privileges: the anon and authenticated roles can read every column except email.
++revoke all on public.members from anon, authenticated;
++grant select (id, full_name, pronouns, role, team, joined_on, linkedin_url, github_url)
++  on public.members to anon, authenticated;
+diff --git a/modules/roster/module.json b/modules/roster/module.json
+index b0f0981..158ddfe 100644
+--- a/modules/roster/module.json
++++ b/modules/roster/module.json
+@@ -1,10 +1,15 @@
+ {
+   "name": "roster",
+-  "version": "0.0.0",
+-  "status": "planned",
++  "version": "0.1.0",
++  "status": "experimental",
+   "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+-  "useWhen": ["Show a team or leadership page", "Hand off a role to next year's exec"],
+-  "provides": { "schemas": ["Member"], "exports": [], "migrations": [] },
++  "useWhen": ["Show a team or leadership page", "Hand off a role to next year's exec", "Store the club's member list"],
++  "provides": {
++    "schemas": ["Member"],
++    "exports": ["teamPage"],
++    "migrations": ["migrations/0001_members.sql"]
++  },
+   "requires": [],
+-  "config": {}
++  "config": {},
++  "verify": "pnpm vitest run modules/roster"
+ }
+diff --git a/modules/roster/package.json b/modules/roster/package.json
+new file mode 100644
+index 0000000..4fb9ef7
+--- /dev/null
++++ b/modules/roster/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "@clubkit/roster",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "main": "src/index.ts",
++  "dependencies": {
++    "@clubkit/schemas": "workspace:*"
++  }
++}
+diff --git a/modules/roster/src/index.ts b/modules/roster/src/index.ts
+new file mode 100644
+index 0000000..1017d3e
+--- /dev/null
++++ b/modules/roster/src/index.ts
+@@ -0,0 +1,10 @@
++import type { Member } from "@clubkit/schemas";
++
++export type TeamPageEntry = Omit<Member, "email">;
++
++/** Members for a public team page, sorted by name, with emails removed. */
++export function teamPage(members: Member[]): TeamPageEntry[] {
++  return members
++    .map(({ email: _email, ...profile }) => profile)
++    .sort((a, b) => a.fullName.localeCompare(b.fullName));
++}
+diff --git a/modules/roster/src/roster.test.ts b/modules/roster/src/roster.test.ts
+new file mode 100644
+index 0000000..7369cf2
+--- /dev/null
++++ b/modules/roster/src/roster.test.ts
+@@ -0,0 +1,17 @@
++import { describe, expect, it } from "vitest";
++import { teamPage } from "./index";
++
++const member = (fullName: string) => ({
++  id: "3f2504e0-4f89-11d3-9a0c-0305e82c3301",
++  fullName,
++  email: `${fullName.toLowerCase()}@example.com`,
++  role: "Developer",
++});
++
++describe("roster", () => {
++  it("sorts the team page by name and hides emails", () => {
++    const profiles = teamPage([member("Zoe"), member("Ana")]);
++    expect(profiles.map((p) => p.fullName)).toEqual(["Ana", "Zoe"]);
++    expect(profiles.every((p) => !("email" in p))).toBe(true);
++  });
++});
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a232741..08ba506 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -33,6 +33,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/schemas
+ 
++  modules/roster:
++    dependencies:
++      '@clubkit/schemas':
++        specifier: workspace:*
++        version: link:../../packages/schemas
++
+   packages/catalog:
+     dependencies:
+       '@clubkit/schemas':

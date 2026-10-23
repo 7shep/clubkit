@@ -1,0 +1,108 @@
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..4f96ffd 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -5,7 +5,8 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ ## Use it for
+ 
+ - Adding or publishing an event (validate with `parseEvent` first).
+-- Showing "what's next" on a club site (`upcomingEvents(events, today)`).
++- Showing "what's next" on a club site (`upcomingEvents(events, today)`), or
++  `nextEvents(events, now, count, timezone?)` when the caller only has the current instant.
+ - Checking whether an event is full (`rsvpSpotsLeft(event, rsvpCount)`).
+ - Giving members an "Add to calendar" file (`eventToIcs(event, timezone)`).
+ 
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..b6c0dce 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -11,7 +11,7 @@
+   ],
+   "provides": {
+     "schemas": ["Event"],
+-    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
++    "exports": ["parseEvent", "upcomingEvents", "nextEvents", "DEFAULT_TIMEZONE", "rsvpSpotsLeft", "eventToIcs"],
+     "migrations": ["migrations/0001_events.sql"]
+   },
+   "requires": [],
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..407c20a 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Event } from "@clubkit/schemas";
+-import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
++import { eventToIcs, nextEvents, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
+ 
+ const base: Event = {
+   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+@@ -26,6 +26,16 @@ describe("events", () => {
+     expect(upcomingEvents(events, "2026-10-22").map((e) => e.name)).toEqual(["today-early", "today-late", "later"]);
+   });
+ 
++  it("finds the next events in the club's timezone, not the server's", () => {
++    // 03:30 UTC on Nov 6 is 22:30 on Nov 5 in Toronto: the 23:00 event hasn't started.
++    const events: Event[] = [
++      { ...base, name: "late", date: "2026-11-05", startTime: "23:00" },
++      { ...base, name: "earlier", date: "2026-11-05", startTime: "19:00" },
++      { ...base, name: "next week", date: "2026-11-12" },
++    ];
++    expect(nextEvents(events, new Date("2026-11-06T03:30:00Z"), 3).map((e) => e.name)).toEqual(["late", "next week"]);
++  });
++
+   it("reports RSVP capacity without going negative", () => {
+     expect(rsvpSpotsLeft(base, 10)).toBeNull();
+     expect(rsvpSpotsLeft({ ...base, rsvpCap: 100 }, 40)).toBe(60);
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..68c573f 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -1,5 +1,7 @@
+ import { EventSchema, type Event } from "@clubkit/schemas";
+ 
++export { DEFAULT_TIMEZONE, nextEvents } from "./next";
++
+ /** Validate untrusted input (form data, agent output, a database row) into an Event. Throws ZodError on bad input. */
+ export function parseEvent(input: unknown): Event {
+   return EventSchema.parse(input);
+diff --git a/modules/events/src/next.ts b/modules/events/src/next.ts
+new file mode 100644
+index 0000000..9db0c63
+--- /dev/null
++++ b/modules/events/src/next.ts
+@@ -0,0 +1,34 @@
++import type { Event } from "@clubkit/schemas";
++
++/** The club's default timezone, matching `config.timezone` in module.json. */
++export const DEFAULT_TIMEZONE = "America/Toronto";
++
++/** The local date and HH:MM in `timezone` at the instant `now`. */
++function localNow(now: Date, timezone: string): { date: string; time: string } {
++  const parts = Object.fromEntries(
++    new Intl.DateTimeFormat("en-CA", {
++      timeZone: timezone,
++      year: "numeric",
++      month: "2-digit",
++      day: "2-digit",
++      hour: "2-digit",
++      minute: "2-digit",
++      hourCycle: "h23",
++    })
++      .formatToParts(now)
++      .map((p) => [p.type, p.value]),
++  );
++  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
++}
++
++/**
++ * The next `count` events that haven't started yet at `now`, in the club's
++ * timezone, soonest first. All-day events count as upcoming for their whole day.
++ */
++export function nextEvents(events: Event[], now: Date, count: number, timezone = DEFAULT_TIMEZONE): Event[] {
++  const local = localNow(now, timezone);
++  return events
++    .filter((e) => e.date > local.date || (e.date === local.date && (e.startTime === undefined || e.startTime >= local.time)))
++    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? ""))
++    .slice(0, count);
++}

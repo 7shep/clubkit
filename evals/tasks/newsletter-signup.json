@@ -1,0 +1,7 @@
+{
+  "id": "newsletter-signup",
+  "prompt": "We want a newsletter signup box on our site: people type their name and email and hit subscribe. Build the backend for it as a new `newsletter` module. It should export `subscribe({ name, email }, existing)`, which validates the signup and returns the updated list of subscribers. If someone signs up twice with the same email, don't add them again.",
+  "modules": ["newsletter"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify newsletter", "pnpm typecheck", "pnpm validate"],
+  "tags": ["hard", "needs:guidance"]
+}

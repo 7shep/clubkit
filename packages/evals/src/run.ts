@@ -22,6 +22,7 @@ Sanity checks: noop must pass nothing and reference must pass everything.`;
 
 interface Attempt {
   task: string;
+  tags: string[];
   variant: Variant;
   trial: number;
   passed: boolean;
@@ -131,7 +132,7 @@ interface AttemptSpec {
 }
 
 async function runAttempt({ task, variant, trial, dir, agent, options, keep }: AttemptSpec): Promise<Attempt> {
-  const workspace = createWorkspace(dir, variant);
+  const workspace = createWorkspace(dir, variant, task);
   try {
     const install = await runCommand("pnpm install --prefer-offline --reporter=silent", dir);
     if (install.exitCode !== 0) throw new Error(`pnpm install failed in ${dir}:\n${install.output}`);
@@ -143,6 +144,7 @@ async function runAttempt({ task, variant, trial, dir, agent, options, keep }: A
     for (const command of task.checks) checks.push(await runCommand(command, dir));
     return {
       task: task.id,
+      tags: task.tags,
       variant,
       trial,
       passed: checks.every((c) => c.exitCode === 0),

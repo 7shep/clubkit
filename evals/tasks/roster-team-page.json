@@ -1,0 +1,7 @@
+{
+  "id": "roster-team-page",
+  "prompt": "Our website needs a team page that lists our execs with their name, role, and team. Add `teamPage(members)` to the roster module that returns what the page should show, sorted by name.",
+  "modules": ["roster"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify roster", "pnpm typecheck", "pnpm validate"],
+  "tags": ["hard", "needs:code", "needs:guidance"]
+}

@@ -1,0 +1,84 @@
+diff --git a/modules/applications/MODULE.md b/modules/applications/MODULE.md
+index c1a51b5..1545579 100644
+--- a/modules/applications/MODULE.md
++++ b/modules/applications/MODULE.md
+@@ -20,7 +20,7 @@ submitted ─→ reviewing ─→ interview ─→ accepted
+ any open state ─→ withdrawn
+ ```
+ 
+-`accepted`, `rejected`, and `withdrawn` are final. `transition` throws with the
++`accepted`, `rejected`, `withdrawn`, and `no_show` (missed the interview) are final. `transition` throws with the
+ allowed moves listed, so an agent can recover from a bad request.
+ 
+ ## Contract
+diff --git a/modules/applications/migrations/0002_no_show_status.sql b/modules/applications/migrations/0002_no_show_status.sql
+new file mode 100644
+index 0000000..055906c
+--- /dev/null
++++ b/modules/applications/migrations/0002_no_show_status.sql
+@@ -0,0 +1,4 @@
++-- Applicants who miss their interview are recorded as no-shows, not rejections.
++alter table public.applications drop constraint if exists applications_status_check;
++alter table public.applications add constraint applications_status_check
++  check (status in ('submitted', 'reviewing', 'interview', 'no_show', 'accepted', 'rejected', 'withdrawn'));
+diff --git a/modules/applications/module.json b/modules/applications/module.json
+index fd0866b..fe200ce 100644
+--- a/modules/applications/module.json
++++ b/modules/applications/module.json
+@@ -12,7 +12,7 @@
+   "provides": {
+     "schemas": ["Application"],
+     "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+-    "migrations": ["migrations/0001_applications.sql"]
++    "migrations": ["migrations/0001_applications.sql", "migrations/0002_no_show_status.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..23fe3ae 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -46,4 +46,11 @@ describe("applications", () => {
+     expect(pipelineSummary(apps)).toMatchObject({ submitted: 1, reviewing: 1, accepted: 1, rejected: 0 });
+     expect(pipelineSummary(apps, "Developer")).toMatchObject({ submitted: 1, reviewing: 1, accepted: 0 });
+   });
++
++  it("records interview no-shows separately from rejections", () => {
++    const interviewing = { ...base, status: "interview" as const };
++    expect(transition(interviewing, "no_show").status).toBe("no_show");
++    expect(() => transition(base, "no_show")).toThrow(/Allowed/);
++    expect(pipelineSummary([transition(interviewing, "no_show")])).toMatchObject({ no_show: 1, rejected: 0 });
++  });
+ });
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..ab23cf3 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -14,11 +14,13 @@ export function parseApplication(input: unknown, options: { deadline?: string; n
+ }
+ 
+ // The review pipeline as an explicit state machine. Decisions are final; an
+-// applicant can withdraw from any open state.
++// applicant can withdraw from any open state. "no_show" means they missed their
++// interview, and is final like a decision.
+ const transitions: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
+   submitted: ["reviewing", "rejected", "withdrawn"],
+   reviewing: ["interview", "accepted", "rejected", "withdrawn"],
+-  interview: ["accepted", "rejected", "withdrawn"],
++  interview: ["accepted", "rejected", "withdrawn", "no_show"],
++  no_show: [],
+   accepted: [],
+   rejected: [],
+   withdrawn: [],
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..6fff425 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -34,6 +34,7 @@ export const ApplicationStatusSchema = z.enum([
+   "submitted",
+   "reviewing",
+   "interview",
++  "no_show",
+   "accepted",
+   "rejected",
+   "withdrawn",

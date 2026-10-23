@@ -32,6 +32,34 @@ are in [RESULTS.md](RESULTS.md).
 | `scope-decision-emails` | applications | Hand out work: write a scope, don't build |
 | `scope-sponsor-page` | sponsors | Hand out work, loosely worded |
 
+### Hard tasks
+
+The first Sonnet run passed nearly every task above in both variants
+([RESULTS.md](RESULTS.md)): most prompts name the exact API and every
+requirement, so the baseline doesn't need the guidance. The tasks tagged
+`hard` leave out what a club exec wouldn't say, and hide a trap that the
+code or the guidance would warn about.
+
+| Task | The trap | Where the warning lives |
+|---|---|---|
+| `applications-no-show` | Editing the applied migration instead of adding one | Guidance (append-only migrations) |
+| `newsletter-signup` | Defining the shape in the module; anon-readable subscribers | Guidance (contracts, private data) |
+| `events-next-on-homepage` | Taking "today" from the UTC server clock | Code (`config.timezone`) and guidance |
+| `roster-team-page` | Emails on a public page; importing a planned module | Code (`Member.email`, `status`) and guidance |
+| `events-check-in` | Same traps as RSVP storage, with the hints removed from the prompt | Code and guidance |
+| `recruitment-wrapup` | Naming applicants in a public channel; not flagging undecided ones | Guidance (`skills/run-recruitment.md`) |
+| `recruitment-decisions` | Forcing illegal status changes (un-withdrawing, reversing a rejection) | Code (`transition`) and guidance |
+
+Each task's `tags` say where the information it needs lives: `needs:code` means
+a careful agent can find it in the code alone, and `needs:guidance` means
+clubkit's agent layer states it. Report results per tag, so a gap on
+guidance-only tasks is read for what it is: the value of writing the club's
+rules down, not a property of the code.
+
+Workflow tasks (`workflow` tag) start from fixture data: `fixtures` in the task
+file maps workspace paths to files in `fixtures/`, committed into the workspace
+before the agent starts. All fixture people and emails are invented.
+
 ### Hand-out-work tasks
 
 `scope-*` tasks ask the agent to write a scope for someone else at
@@ -90,7 +118,7 @@ Each task needs three files sharing one id:
 
 | File | Contains |
 |---|---|
-| `tasks/<id>.json` | `id`, `prompt` (all the agent sees), `modules` (for analysis), `checks` |
+| `tasks/<id>.json` | `id`, `prompt` (all the agent sees), `modules` and `tags` (for analysis), `checks`, optional `fixtures` |
 | `hidden/<id>.eval.ts` | Vitest tests the agent never sees. Import modules with `../modules/...` paths |
 | `reference/<id>.patch` | A known-good solution, as `git diff` output against `HEAD` |
 

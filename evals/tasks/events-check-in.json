@@ -1,0 +1,7 @@
+{
+  "id": "events-check-in",
+  "prompt": "We want to know who actually shows up to our events, not just who RSVP'd. Add check-ins to the events module: `checkIn(event, existing, { name, email })` records someone arriving and returns the updated list of check-ins. Checking in twice should only count once. Save check-ins in the database too.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck", "pnpm validate"],
+  "tags": ["hard", "needs:code", "needs:guidance"]
+}

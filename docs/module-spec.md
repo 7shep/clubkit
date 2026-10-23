@@ -39,3 +39,6 @@ Experimental and stable modules also have `package.json` (`@clubkit/<name>`),
 4. **Private data stays private.** Tables with personal data get RLS with no
    public policies; real member or applicant data is never committed.
 5. **`catalog.json` is generated.** Run `pnpm catalog` after any manifest change.
+6. **Migrations are append-only.** Never edit a migration that is in the repo; a
+   club may already have applied it. Add the next numbered file and list it in
+   `provides.migrations`.

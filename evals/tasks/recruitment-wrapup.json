@@ -1,0 +1,8 @@
+{
+  "id": "recruitment-wrapup",
+  "prompt": "Recruitment closed last night. Write the wrap-up post for our #general channel in `reports/recruitment-wrapup.md`, based on the applications in `data/applications.json`.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden"],
+  "fixtures": { "data/applications.json": "recruitment-wrapup/applications.json" },
+  "tags": ["hard", "workflow", "needs:guidance"]
+}

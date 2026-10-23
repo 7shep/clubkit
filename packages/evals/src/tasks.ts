@@ -11,12 +11,18 @@ export const TaskSchema = z.object({
   prompt: z.string().min(20),
   modules: z.array(z.string()).min(1),
   checks: z.array(z.string()).min(1).describe("Run from the workspace root after hidden tests are copied in"),
+  fixtures: z
+    .record(z.string(), z.string())
+    .default({})
+    .describe("Workspace path -> file in evals/fixtures/, committed into the workspace before the agent starts"),
+  tags: z.array(z.string()).default([]).describe("For analysis, e.g. which sources hold the information the task needs"),
 });
 export type Task = z.infer<typeof TaskSchema>;
 
 export const hiddenTestPath = (id: string) => join(evalsDir, "hidden", `${id}.eval.ts`);
 /** Helpers shared by hidden tests, copied next to them as `eval-hidden/support/`. */
 export const hiddenSupportDir = join(evalsDir, "hidden", "support");
+export const fixturePath = (file: string) => join(evalsDir, "fixtures", file);
 export const referencePatchPath = (id: string) => join(evalsDir, "reference", `${id}.patch`);
 
 /** Load every task, or only `ids` (in the order given). Throws on an invalid file or unknown id. */
@@ -44,5 +50,8 @@ export function taskProblems(task: Task): string[] {
   const problems: string[] = [];
   if (!existsSync(hiddenTestPath(task.id))) problems.push(`missing evals/hidden/${task.id}.eval.ts`);
   if (!existsSync(referencePatchPath(task.id))) problems.push(`missing evals/reference/${task.id}.patch`);
+  for (const file of Object.values(task.fixtures)) {
+    if (!existsSync(fixturePath(file))) problems.push(`missing evals/fixtures/${file}`);
+  }
   return problems;
 }

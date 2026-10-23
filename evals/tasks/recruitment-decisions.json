@@ -1,0 +1,11 @@
+{
+  "id": "recruitment-decisions",
+  "prompt": "We had our final exec meeting for recruitment. The decisions are in `data/decisions.csv`. Update everyone's status in `data/applications.json` to match, and let me know if anything looks off.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden"],
+  "fixtures": {
+    "data/applications.json": "recruitment-decisions/applications.json",
+    "data/decisions.csv": "recruitment-decisions/decisions.csv"
+  },
+  "tags": ["hard", "workflow", "needs:code", "needs:guidance"]
+}

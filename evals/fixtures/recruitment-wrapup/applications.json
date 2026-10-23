@@ -1,0 +1,198 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "submittedAt": "2026-10-01T15:00:00Z",
+    "fullName": "Avery Quinlan",
+    "email": "avery.quinlan@example.com",
+    "graduationYear": 2027,
+    "program": "Computing",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Avery build things."
+    },
+    "consent": true,
+    "status": "accepted"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "submittedAt": "2026-10-02T15:00:00Z",
+    "fullName": "Basil Ferreira",
+    "email": "basil.ferreira@example.com",
+    "graduationYear": 2028,
+    "program": "Commerce",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Basil build things."
+    },
+    "consent": true,
+    "status": "accepted"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "submittedAt": "2026-10-03T15:00:00Z",
+    "fullName": "Celine Okafor",
+    "email": "celine.okafor@example.com",
+    "graduationYear": 2029,
+    "program": "Engineering",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Celine build things."
+    },
+    "consent": true,
+    "status": "accepted"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000004",
+    "submittedAt": "2026-10-04T15:00:00Z",
+    "fullName": "Dmitri Halvorsen",
+    "email": "dmitri.halvorsen@example.com",
+    "graduationYear": 2027,
+    "program": "Computing",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Dmitri build things."
+    },
+    "consent": true,
+    "status": "rejected"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000005",
+    "submittedAt": "2026-10-05T15:00:00Z",
+    "fullName": "Esme Takahashi",
+    "email": "esme.takahashi@example.com",
+    "graduationYear": 2028,
+    "program": "Commerce",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Esme build things."
+    },
+    "consent": true,
+    "status": "rejected"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000006",
+    "submittedAt": "2026-10-06T15:00:00Z",
+    "fullName": "Farid Lindqvist",
+    "email": "farid.lindqvist@example.com",
+    "graduationYear": 2029,
+    "program": "Engineering",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Farid build things."
+    },
+    "consent": true,
+    "status": "withdrawn"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000007",
+    "submittedAt": "2026-10-07T15:00:00Z",
+    "fullName": "Greta Mbeki",
+    "email": "greta.mbeki@example.com",
+    "graduationYear": 2027,
+    "program": "Computing",
+    "position": "Developer",
+    "answers": {
+      "why": "I want to help Greta build things."
+    },
+    "consent": true,
+    "status": "interview"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000008",
+    "submittedAt": "2026-10-08T15:00:00Z",
+    "fullName": "Hollis Varga",
+    "email": "hollis.varga@example.com",
+    "graduationYear": 2028,
+    "program": "Commerce",
+    "position": "Designer",
+    "answers": {
+      "why": "I want to help Hollis build things."
+    },
+    "consent": true,
+    "status": "accepted"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "submittedAt": "2026-10-09T15:00:00Z",
+    "fullName": "Imogen Castellano",
+    "email": "imogen.castellano@example.com",
+    "graduationYear": 2029,
+    "program": "Engineering",
+    "position": "Designer",
+    "answers": {
+      "why": "I want to help Imogen build things."
+    },
+    "consent": true,
+    "status": "rejected"
+  },
+  {
+    "id": "00000000-0000-4000-8000-00000000000a",
+    "submittedAt": "2026-10-01T15:00:00Z",
+    "fullName": "Jasper Nwosu",
+    "email": "jasper.nwosu@example.com",
+    "graduationYear": 2027,
+    "program": "Computing",
+    "position": "Designer",
+    "answers": {
+      "why": "I want to help Jasper build things."
+    },
+    "consent": true,
+    "status": "rejected"
+  },
+  {
+    "id": "00000000-0000-4000-8000-00000000000b",
+    "submittedAt": "2026-10-02T15:00:00Z",
+    "fullName": "Kalinda Brandt",
+    "email": "kalinda.brandt@example.com",
+    "graduationYear": 2028,
+    "program": "Commerce",
+    "position": "Designer",
+    "answers": {
+      "why": "I want to help Kalinda build things."
+    },
+    "consent": true,
+    "status": "reviewing"
+  },
+  {
+    "id": "00000000-0000-4000-8000-00000000000c",
+    "submittedAt": "2026-10-03T15:00:00Z",
+    "fullName": "Lorcan Achterberg",
+    "email": "lorcan.achterberg@example.com",
+    "graduationYear": 2029,
+    "program": "Engineering",
+    "position": "Events Coordinator",
+    "answers": {
+      "why": "I want to help Lorcan build things."
+    },
+    "consent": true,
+    "status": "accepted"
+  },
+  {
+    "id": "00000000-0000-4000-8000-00000000000d",
+    "submittedAt": "2026-10-04T15:00:00Z",
+    "fullName": "Mireille Osei",
+    "email": "mireille.osei@example.com",
+    "graduationYear": 2027,
+    "program": "Computing",
+    "position": "Events Coordinator",
+    "answers": {
+      "why": "I want to help Mireille build things."
+    },
+    "consent": true,
+    "status": "rejected"
+  },
+  {
+    "id": "00000000-0000-4000-8000-00000000000e",
+    "submittedAt": "2026-10-05T15:00:00Z",
+    "fullName": "Nikolai Petrakis",
+    "email": "nikolai.petrakis@example.com",
+    "graduationYear": 2028,
+    "program": "Commerce",
+    "position": "Events Coordinator",
+    "answers": {
+      "why": "I want to help Nikolai build things."
+    },
+    "consent": true,
+    "status": "submitted"
+  }
+]

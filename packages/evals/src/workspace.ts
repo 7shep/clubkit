@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { hiddenSupportDir, hiddenTestPath, repoRoot, type Task } from "./tasks";
+import { dirname, join } from "node:path";
+import { fixturePath, hiddenSupportDir, hiddenTestPath, repoRoot, type Task } from "./tasks";
 
 export type Variant = "clubkit" | "baseline";
 
@@ -28,10 +28,10 @@ export interface Workspace {
 
 /**
  * Create a detached git worktree of HEAD for one attempt. The eval harness is
- * always removed; baseline also removes guidance. The removal is committed so
- * the agent sees a clean tree.
+ * always removed; baseline also removes guidance. The task's fixtures are added.
+ * The result is committed so the agent sees a clean tree.
  */
-export function createWorkspace(dir: string, variant: Variant): Workspace {
+export function createWorkspace(dir: string, variant: Variant, task: Task): Workspace {
   const baseCommit = git(repoRoot, "rev-parse", "HEAD");
   git(repoRoot, "worktree", "add", "--detach", "--force", dir, baseCommit);
 
@@ -41,6 +41,10 @@ export function createWorkspace(dir: string, variant: Variant): Workspace {
   // Drop the directories too, so empty folders like evals/hidden don't hint at what was removed.
   const dirs = ["evals", "packages/evals", ...(variant === "baseline" ? guidancePaths : [])];
   for (const path of dirs) rmSync(join(dir, path), { recursive: true, force: true });
+  for (const [target, source] of Object.entries(task.fixtures)) {
+    mkdirSync(dirname(join(dir, target)), { recursive: true });
+    copyFileSync(fixturePath(source), join(dir, target));
+  }
   git(dir, "add", "-A");
   git(dir, "-c", "user.name=clubkit-eval", "-c", "user.email=eval@clubkit.invalid", "commit", "-q", "--no-verify", "-m", `eval workspace (${variant})`);
   return { dir, baseCommit, variant };
