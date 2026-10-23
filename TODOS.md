@@ -1,88 +1,130 @@
 # TODOS
 
-What stands between clubkit today and the finished project: one monorepo with
-everything a student club needs, built so AI agents can find, use, and verify
-the parts they need, with evals that prove the agent-facing layer helps.
+**The goal:** a system that runs the tedious parts of a student club. The
+monorepo is the framework for how a club works, written so an agent can see
+what the club does and help with it: sending acceptance and rejection emails,
+scheduling interviews, handing off roles to new execs, onboarding, outreach,
+marketing, sponsors, and development when it's needed.
 
-**Where it stands (2026-10-22):** two working modules (`events`,
-`applications`), three planned (`site-core`, `roster`, `sponsors`), a manifest
-validator and CLI, an MCP server, two playbooks, and an eval runner with 16
-tasks. Sanity checks pass (noop 0/32, reference 32/32), and one Claude Code
-smoke test passed. No real clubkit-versus-baseline comparison has been run yet.
+## The system
 
-Work roughly top to bottom: each section makes the ones after it worth more.
+| Layer | What it is | Where it lives | Today |
+|---|---|---|---|
+| **Modules** | What the club's data is and the rules it follows | `modules/<name>` | `events`, `applications` work; `roster`, `sponsors`, `site-core` planned |
+| **Integrations** | How clubkit touches the world: email, calendar, Supabase, social | `integrations/<name>` | None |
+| **Workflows** | What an agent runs end to end: "close recruitment", "hand off VP Events" | `skills/` + workflow functions | Two playbooks, no automation |
+| **Club config** | One club's name, timezone, positions, templates, approvers, branding | `club.config.json` | None |
 
-## 1. Get a real eval result
+Every workflow follows the same shape: **work out what's needed → draft →
+exec approves → do it → record it.** Anything that reaches a real person (an
+applicant, a sponsor, the public) is drafted first and sent only after a human
+approves, and every send is logged so a re-run never repeats it. That rule is
+what makes it safe to hand an agent the club's inbox.
 
-The headline claim is "agents succeed more often with clubkit's agent layer
-than without it." Nothing supports that yet.
+**Where it stands (2026-10-22):** two working modules, an MCP server, a CLI
+and manifest validator, two playbooks, and an eval runner with 16 tasks
+(sanity: noop 0/32, reference 32/32). The first Sonnet clubkit-versus-baseline
+run is in progress. No integrations, workflows, or club config yet. No club
+runs on it yet; QWeb is the first target.
 
-- [x] Grow the task set to 12–15 tasks. 16 tasks now, listed in `evals/README.md`:
-  - [x] Events: add RSVP storage with a cap that refuses sign-ups once full (`events-rsvp-storage`).
-  - [x] Events: recurring weekly events, e.g. "every Thursday until Dec 4" (`events-recurring-weekly`).
-  - [x] Events: list upcoming events for a site that only has a timezone and the current instant (`events-upcoming-timezone`).
-  - [x] Applications: reviewer scores with an average per applicant (`applications-reviewer-scores`).
-  - [x] Applications: reopen a closed position without losing past decisions (`applications-reopen-position`).
-  - [x] Applications: export accepted applicants as CSV, with no demographic fields (`applications-accepted-csv`).
-  - [x] Roster: promote the module, with a `Member` table that keeps emails private (`roster-promote`).
-  - [x] Roster: exec handoff that moves a role from one member to another and records the date (`roster-exec-handoff`).
-  - [x] Cross-module: an event page that also lists the sponsors for that event (`event-page-sponsors`).
-  - [x] Ambiguous prompt: one task phrased loosely, the way a non-technical exec would ask (`applications-position-typos`).
-  - [x] Hand out work: the agent writes a scope for someone else instead of building it
-        (`scope-rsvp-reminders`, `scope-decision-emails`, `scope-sponsor-page`).
-- [ ] Scope quality beyond structure: an LLM-judge check (does a newcomer know what to do?) to sit
-      alongside the structural checks in `evals/hidden/support/scope.ts`.
-- [ ] Run sanity checks after every task change (`--agent noop` must pass 0, `--agent reference` must pass all).
-- [ ] Run the comparison: `pnpm eval --model sonnet --trials 3`, then repeat with a second model.
-- [ ] Add `pnpm eval:report`: aggregate `evals/results/*.json` into success rate per variant and model,
+Work top to bottom. Each step is ordered by tedium × frequency × what's coming up
+in the club year.
+
+## 1. Prove the agent layer helps
+
+The claim: agents succeed more often with clubkit's agent layer than without it.
+
+- [ ] Read the first Sonnet run; turn every clubkit-variant failure into a doc, MCP, or playbook fix.
+- [ ] Rerun with `--trials 3`, then with a second model.
+- [ ] Write up the results in `evals/RESULTS.md`: exact commands, commit, models, costs, per-task results.
+- [ ] `pnpm eval:report`: aggregate `evals/results/*.json` into success rate per variant and model,
       with confidence intervals, mean cost, turns, and duration, plus per-task breakdowns.
-- [ ] Ablations: variants that remove only the MCP server, only `MODULE.md`, or only `AGENTS.md`,
-      to show which part of the agent layer actually matters.
-- [ ] Record which files and MCP tools each agent used (from `--output-format stream-json`), so
-      results explain *why* a variant wins, not just that it does.
-- [ ] Write up the results in `evals/RESULTS.md` with the exact commands, commit, models, and costs.
+- [ ] Ablations: variants that remove only the MCP server, only `MODULE.md`, or only `AGENTS.md`.
+- [ ] Record which files and MCP tools each agent used (`--output-format stream-json`), so results
+      explain *why* a variant wins.
+- [ ] Scope quality beyond structure: an LLM-judge check alongside `evals/hidden/support/scope.ts`.
+- [ ] Run both sanity checks after every task change (noop passes 0, reference passes all).
 
-## 2. Finish the modules
+## 2. Foundations every workflow needs
 
-- [ ] **sponsors:** promote from `planned` (the eval reference patch is a working starting point).
-- [ ] **roster:** members, roles, terms, and exec handoff. Extract from QWeb's `team_members`.
-- [ ] **site-core:** decide the framework first (QWeb uses React + Vite; QMIND uses Next.js), then
-      extract layout, theme tokens, and the home/about/team/join pages.
-- [ ] **events gaps:** RSVP storage, reminders, recurring events. Emit a `VTIMEZONE` block in `.ics`
-      files; `TZID` without one works in most calendar apps but is not strictly valid iCalendar.
-- [ ] **applications gaps:** form rendering from a prompt config, reviewer scoring, decision emails.
-- [ ] New modules a club actually runs on: `forms`, `newsletter`/email, `budget`, `onboarding`, `projects`
-      (member project showcase, from QWeb), and `handoff` (what next year's exec needs to know).
+- [ ] **Club config:** `club.config.json` (name, timezone, positions, email templates, approvers,
+      branding), validated against module manifests. Module `config` fields read from it.
+- [ ] **Integration contract:** each integration is an injected adapter with a real implementation,
+      a fake for tests, and a dry-run mode. Shapes live in `packages/schemas` like everything else.
+- [ ] **Email integration:** send through one provider (decide which with QWeb), plus a fake outbox.
+- [ ] **Calendar integration:** free/busy and invites (Google Calendar first; it's what execs use).
+- [ ] **Outbox and approvals:** drafts stored with a status (`draft → approved → sent`), who approved,
+      and when. Sending is idempotent: the same message to the same person never goes twice.
+- [ ] **Audit log:** every action a workflow takes, readable by execs, with no personal data in public places.
+- [ ] Supabase setup guide: applying migrations in order, environment variables, and an `.env.example`.
 
-## 3. Strengthen the agent layer
+## 3. Recruitment, end to end, at QWeb
 
-- [ ] `pnpm clubkit new <name>`: scaffold a module that already passes validation, so agents and
-      humans start from the convention instead of copying a folder.
-- [ ] Detect a stale `catalog.json` in `pnpm validate` (regenerate in memory and compare).
-- [ ] MCP: expose module docs and skills as MCP resources, and add a `scaffold_module` tool once the
-      CLI command exists. Keep writes to the agent's own file tools.
-- [ ] MCP trust boundary: `verify_module` runs the shell command in a manifest. Fine locally; restrict
-      it to `pnpm vitest run modules/<name>` before the server is ever exposed beyond a local repo.
-- [ ] More playbooks in `skills/`: start a new club site, run an event, hand off to next year's exec.
-- [ ] Per-club configuration: one `club.config.json` (name, timezone, positions, branding) that
-      module `config` fields read from, validated against the manifests.
+The most tedious and most visible job, and the first real production use.
 
-## 4. Use it for a real club
+- [ ] **Decision emails:** accepted and rejected applicants each get one email after approval;
+      withdrawn and undecided applicants get none. The `scope-decision-emails` eval reference
+      (`evals/reference/scope-decision-emails.patch`) is a ready-made brief.
+- [ ] **Interview scheduling:** offer slots from interviewers' calendars, let applicants pick, send
+      invites, and move applicants to `interview` through `transition`.
+- [ ] **Reviewer scoring:** scores per reviewer with averages (the `applications-reviewer-scores`
+      eval reference is a working start).
+- [ ] **Application form** rendered from the club's prompt config.
+- [ ] Playbook: `skills/close-recruitment.md` (decide → draft emails → approve → send → report counts).
+- [ ] Run QWeb's next recruitment cycle on it. Record every place the agent stalled and turn each into
+      a doc fix or an eval task.
 
-- [ ] Supabase setup guide: applying module migrations in order, environment variables, and an `.env.example`.
-- [ ] Stand up one real club from clubkit end to end (a small Queen's club, or a QWeb/QMIND rebuild).
-      A real user is worth more than any number of planned modules.
-- [ ] Have an agent do it: give Claude Code only "set up a site and recruitment for <club>" and record
-      what it got right and where it stalled. Turn every stall into a doc fix or an eval task.
+## 4. Handoff and onboarding
 
-## 5. Make it presentable
+Exec turnover happens in spring; have this ready before then.
 
-- [ ] GitHub Actions: `pnpm check` plus both eval sanity checks on every push. The real agent eval stays
-      manual because it costs money.
-- [ ] Add a LICENSE (MIT, to match making it public).
-- [ ] Make the repository public once the README shows a real eval result.
-- [ ] README: a short demo (GIF or video) of an agent using the MCP server, and the headline eval chart.
-- [ ] `CONTRIBUTING.md` built from `docs/module-spec.md`, for other club developers.
+- [ ] **roster:** promote it (the `roster-promote` and `roster-exec-handoff` eval references are a start).
+      Extract from QWeb's `team_members`. Public team page, private emails.
+- [ ] **handoff module:** per-role docs, access lists (accounts, drives, keys to rotate), open tasks,
+      and "what you need to know" notes. The agent drafts them from the outgoing exec's input.
+- [ ] **onboarding module:** a checklist per role or for new members (accounts, intro email, first
+      tasks), driven by `acceptedApplicantsCsv`-style handoff from recruitment.
+- [ ] Playbooks: `skills/hand-off-a-role.md` and `skills/onboard-new-members.md`.
+- [ ] Workflow evals: given a roster and a role, the handoff doc covers access, open work, and contacts.
+
+## 5. Sponsors and outreach
+
+- [ ] **sponsors:** promote it (the `promote-sponsors` eval reference is a start). Tiers and logos on the site.
+- [ ] **Outreach pipeline:** who was contacted, when, by whom, and what they said; follow-up reminders.
+- [ ] The agent drafts outreach and follow-ups from the club's sponsorship package; execs approve and send.
+- [ ] Playbook: `skills/run-sponsor-outreach.md`.
+
+## 6. Events and marketing
+
+- [ ] **events gaps:** RSVP storage, reminders, recurring events (eval references exist for the first
+      and last). Emit `VTIMEZONE` in `.ics` files.
+- [ ] **Marketing drafts:** event posts and a newsletter generated from events data, approved before posting.
+- [ ] Social integrations, one platform at a time, starting with the one QWeb uses most.
+- [ ] Playbook: `skills/run-an-event.md` (create → announce → RSVPs → reminders → follow-up).
+
+## 7. Development
+
+Agents are already good at this; it's what the current evals measure.
+
+- [ ] **site-core:** decide the framework (QWeb uses React + Vite; QMIND uses Next.js), then extract
+      layout, theme tokens, and the home/about/team/join pages.
+- [ ] `pnpm clubkit new <name>`: scaffold a module that already passes validation.
+- [ ] Detect a stale `catalog.json` in `pnpm validate`.
+- [ ] MCP: expose module docs and skills as resources; add `scaffold_module` once the CLI command exists.
+- [ ] MCP trust boundary: restrict `verify_module` to `pnpm vitest run modules/<name>` before the server
+      is exposed beyond a local repo.
+
+## 8. More clubs, and making it public
+
+- [ ] A second club (Zac's) tries one workflow. Two clubs is what shows it generalizes.
+- [ ] Have an agent set up a club from scratch with only "set up a site and recruitment for <club>";
+      turn every stall into a fix or an eval task.
+- [ ] Workflow evals: tasks scored on outcomes (e.g. the fake outbox holds exactly the right emails,
+      nothing sent without approval, nothing sent twice on a re-run), not just function behaviour.
+- [ ] GitHub Actions: `pnpm check` plus both eval sanity checks on every push. Real agent evals stay manual.
+- [ ] LICENSE (MIT), `CONTRIBUTING.md` from `docs/module-spec.md`.
+- [ ] README: the headline eval chart, "QWeb runs on clubkit", and a short demo of an agent running a workflow.
+- [ ] Make the repository public once the README shows a real eval result and a real club.
 
 ## Known issues
 
@@ -91,3 +133,5 @@ than without it." Nothing supports that yet.
   deleting the folder and pruning, which works.
 - Baseline restores guidance files before checks, so a baseline agent's edits to `MODULE.md` or
   `AGENTS.md` are overwritten. Scoring is unaffected because checks test behaviour, not docs.
+- The eval workspace deletes `packages/evals`, so `pnpm install` rewrites `pnpm-lock.yaml` there;
+  scope checks ignore it.
