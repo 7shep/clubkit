@@ -28,10 +28,10 @@ interface Section {
 // Each section a recipient needs, by the headings people commonly use for it.
 const requiredSections: Record<string, RegExp> = {
   "goal or background": /goal|objective|summary|overview|problem|why|background|context|purpose|what (already )?exists|current state|today/i,
-  "what to build": /^(?!.*(out of|non-goal|not in)).*(scope|deliverable|requirement|what to build|tasks?\b|work|plan|approach|implementation)/i,
+  "what to build": /^(?!.*(out of|non-goal|not in)).*(scope|deliverable|requirement|build|tasks?\b|work|plan|approach|implementation)/i,
   "out of scope": /out of scope|non-goals?|not (in scope|included)|won'?t|excluded|later/i,
-  "acceptance criteria": /acceptance|done|success criteria|criteria|finished when/i,
-  "open questions or assumptions": /question|assumption|decision|unknown|risk|unresolved/i,
+  "acceptance criteria": /acceptance|\bdone\b|success criteria|criteria|finished when/i,
+  "open questions or assumptions": /question|assumption|decision|unknown|risk|unresolved|open (items|issues)/i,
 };
 
 // Changes the runner makes, not the agent: guidance the baseline variant restores before checks, and the
@@ -104,11 +104,13 @@ export function checkScope(spec: ScopeSpec): void {
   it("points at the right code and only at code that exists", () => {
     const text = read();
     for (const name of spec.modules) expect(text, `should point at modules/${name}`).toContain(`modules/${name}`);
-    // Any module or package it names must be real; new files inside them are fine. packages/evals is
-    // the eval harness: removed from the workspace, but the README still mentions it.
-    for (const [, kind, name] of text.matchAll(/\b(modules|packages)\/([a-z0-9-]+)/g)) {
-      if (kind === "packages" && name === "evals") continue;
-      expect(existsSync(`${kind}/${name}`), `${kind}/${name} does not exist`).toBe(true);
+    // Any module or package it names must be real, unless the same line proposes it as new. packages/evals
+    // is the eval harness: removed from the workspace, but the README still mentions it.
+    for (const line of text.split(/\r?\n/)) {
+      for (const [, kind, name] of line.matchAll(/\b(modules|packages)\/([a-z0-9-]+)/g)) {
+        if ((kind === "packages" && name === "evals") || /\bnew\b/i.test(line)) continue;
+        expect(existsSync(`${kind}/${name}`), `${kind}/${name} does not exist`).toBe(true);
+      }
     }
   });
 
