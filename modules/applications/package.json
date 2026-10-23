@@ -5,6 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
+    "@clubkit/outbox": "workspace:*",
     "@clubkit/schemas": "workspace:*"
   }
 }

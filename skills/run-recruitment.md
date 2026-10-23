@@ -14,5 +14,6 @@ Use this when a club opens applications for members or exec roles.
    never applicant details, in public channels.
 6. After decisions, every applicant should be in `accepted`, `rejected`, or
    `withdrawn`. Flag any still `submitted`, `reviewing`, or `interview`.
+7. Send decision emails with `skills/close-recruitment.md`.
 
-Not yet automated: the public form, reviewer scoring, and decision emails.
+Not yet automated: the public form, reviewer scoring, and interview scheduling.

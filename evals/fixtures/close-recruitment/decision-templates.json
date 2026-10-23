@@ -1,0 +1,10 @@
+{
+  "accepted": {
+    "subject": "Welcome to QWeb!",
+    "body": "Hi {{firstName}},\n\nCongratulations: we'd love to have you join QWeb as our new {{position}}. Your first meeting details are coming soon.\n\nQWeb Exec"
+  },
+  "rejected": {
+    "subject": "Your QWeb application",
+    "body": "Hi {{firstName}},\n\nThank you for applying to be our {{position}}. We had a lot of strong applicants this year and can't offer you a spot this time, but we hope you'll apply again.\n\nQWeb Exec"
+  }
+}

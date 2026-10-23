@@ -66,11 +66,48 @@ export const SponsorSchema = z.object({
 });
 export type Sponsor = z.infer<typeof SponsorSchema>;
 
+// Every email that reaches a real person is drafted, approved by a named exec, then sent once.
+export const OutboxStatusSchema = z.enum(["draft", "approved", "sent"]);
+export type OutboxStatus = z.infer<typeof OutboxStatusSchema>;
+
+export const OutboxMessageSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .describe("Idempotency key, e.g. 'decision:<applicationId>'. A key is drafted and sent at most once, ever"),
+  to: z.string().email(),
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  status: OutboxStatusSchema,
+  createdAt: z.string().datetime(),
+  approvedBy: z.string().min(1).optional().describe("The exec who read and approved the message"),
+  approvedAt: z.string().datetime().optional(),
+  sentAt: z.string().datetime().optional(),
+  providerId: z.string().optional().describe("The email provider's id for the sent message"),
+});
+export type OutboxMessage = z.infer<typeof OutboxMessageSchema>;
+
+/** What a workflow drafts and what an email adapter sends: a message without its outbox state. */
+export type OutgoingEmail = Pick<OutboxMessage, "key" | "to" | "subject" | "body">;
+
+/** Sends one email. Real providers and the test fake implement it; workflows receive it injected. */
+export interface EmailAdapter {
+  send(email: OutgoingEmail): Promise<{ id: string }>;
+}
+
+export const EmailTemplateSchema = z.object({
+  subject: z.string().min(1),
+  body: z.string().min(1).describe("Text with {{field}} placeholders, e.g. {{firstName}}"),
+});
+export type EmailTemplate = z.infer<typeof EmailTemplateSchema>;
+
 /** Registry used by manifests: a module declares the schemas it provides by these names. */
 export const sharedSchemas = {
   Member: MemberSchema,
   Event: EventSchema,
   Application: ApplicationSchema,
   Sponsor: SponsorSchema,
+  OutboxMessage: OutboxMessageSchema,
+  EmailTemplate: EmailTemplateSchema,
 } as const;
 export type SharedSchemaName = keyof typeof sharedSchemas;

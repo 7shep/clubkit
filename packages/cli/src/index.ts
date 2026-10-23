@@ -1,4 +1,5 @@
 import { findModule, loadModules, verifyModule, writeCatalog } from "@clubkit/catalog";
+import { closeRecruitment, outbox, workflowUsage } from "./workflows";
 
 const usage = `Usage: pnpm clubkit <command>
 
@@ -6,10 +7,15 @@ Commands:
   list              List modules and their status
   validate          Check every module manifest; exit 1 on problems
   catalog           Validate, then regenerate catalog.json
-  verify [module]   Run one module's verify command, or every non-planned module's`;
+  verify [module]   Run one module's verify command, or every non-planned module's
+
+Workflows:
+${workflowUsage}`;
 
 async function main(argv: string[]): Promise<number> {
   const [command, arg] = argv;
+  if (command === "close-recruitment") return closeRecruitment(argv.slice(1));
+  if (command === "outbox") return outbox(argv.slice(1));
   const { modules, problems } = loadModules();
 
   switch (command) {
@@ -59,4 +65,7 @@ async function main(argv: string[]): Promise<number> {
   }
 }
 
-process.exitCode = await main(process.argv.slice(2));
+process.exitCode = await main(process.argv.slice(2)).catch((error: Error) => {
+  console.error(`✗ ${error.message}`);
+  return 1;
+});

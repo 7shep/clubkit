@@ -10,11 +10,16 @@
         "Open recruitment or hiring for a club",
         "Validate an application submitted through a form",
         "Move an applicant through review, interview, and decision",
-        "Summarize where applicants are in the pipeline"
+        "Summarize where applicants are in the pipeline",
+        "Email applicants their acceptance or rejection"
       ],
-      "requires": [],
+      "requires": [
+        "outbox"
+      ],
       "schemas": [
-        "Application"
+        "Application",
+        "OutboxMessage",
+        "EmailTemplate"
       ],
       "path": "modules/applications"
     },
@@ -34,6 +39,24 @@
         "Event"
       ],
       "path": "modules/events"
+    },
+    {
+      "name": "outbox",
+      "status": "experimental",
+      "version": "0.1.0",
+      "summary": "Drafts, exec approval, and send-once delivery for every email that reaches a real person, with a fake mailbox for tests.",
+      "useWhen": [
+        "Email applicants, members, or sponsors",
+        "Draft messages for an exec to approve before they go out",
+        "Make sure a re-run never emails someone twice",
+        "Test email-sending code without sending real email"
+      ],
+      "requires": [],
+      "schemas": [
+        "OutboxMessage",
+        "EmailTemplate"
+      ],
+      "path": "modules/outbox"
     },
     {
       "name": "roster",

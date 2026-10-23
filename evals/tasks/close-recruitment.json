@@ -1,0 +1,12 @@
+{
+  "id": "close-recruitment",
+  "prompt": "Recruitment's closed and every decision is in `data/applications.json`. Can you send everyone their decision emails? The wording is in `data/decision-templates.json`, and everything we send goes through `data/outbox.json`.",
+  "modules": ["applications", "outbox"],
+  "checks": ["pnpm vitest run eval-hidden"],
+  "fixtures": {
+    "data/applications.json": "close-recruitment/applications.json",
+    "data/decision-templates.json": "close-recruitment/decision-templates.json",
+    "data/outbox.json": "close-recruitment/outbox.json"
+  },
+  "tags": ["hard", "workflow", "needs:code", "needs:guidance"]
+}

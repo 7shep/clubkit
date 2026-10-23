@@ -5,6 +5,10 @@
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
-    "@clubkit/catalog": "workspace:*"
+    "@clubkit/applications": "workspace:*",
+    "@clubkit/catalog": "workspace:*",
+    "@clubkit/outbox": "workspace:*",
+    "@clubkit/schemas": "workspace:*",
+    "zod": "^3.23.8"
   }
 }

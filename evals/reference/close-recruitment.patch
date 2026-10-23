@@ -1,0 +1,50 @@
+diff --git a/data/outbox.json b/data/outbox.json
+index 1531d3b..013a2b5 100644
+--- a/data/outbox.json
++++ b/data/outbox.json
+@@ -34,5 +34,45 @@
+     "approvedAt": "2026-11-18T18:00:00.000Z",
+     "sentAt": "2026-11-18T18:05:00.000Z",
+     "providerId": "msg_1805"
++  },
++  {
++    "key": "decision:00000000-0000-4000-8000-000000000001",
++    "to": "odessa.marchetti@example.com",
++    "subject": "Welcome to QWeb!",
++    "body": "Hi Odessa,\n\nCongratulations: we'd love to have you join QWeb as our new Developer. Your first meeting details are coming soon.\n\nQWeb Exec",
++    "status": "draft",
++    "createdAt": "2026-10-23T05:28:02.223Z"
++  },
++  {
++    "key": "decision:00000000-0000-4000-8000-000000000003",
++    "to": "hana.sorensen@example.com",
++    "subject": "Welcome to QWeb!",
++    "body": "Hi Hana,\n\nCongratulations: we'd love to have you join QWeb as our new Designer. Your first meeting details are coming soon.\n\nQWeb Exec",
++    "status": "draft",
++    "createdAt": "2026-10-23T05:28:02.223Z"
++  },
++  {
++    "key": "decision:00000000-0000-4000-8000-000000000004",
++    "to": "ifeoma.castellanos@example.com",
++    "subject": "Welcome to QWeb!",
++    "body": "Hi Ifeoma,\n\nCongratulations: we'd love to have you join QWeb as our new Events Coordinator. Your first meeting details are coming soon.\n\nQWeb Exec",
++    "status": "draft",
++    "createdAt": "2026-10-23T05:28:02.223Z"
++  },
++  {
++    "key": "decision:00000000-0000-4000-8000-000000000006",
++    "to": "saskia.albrecht@example.com",
++    "subject": "Your QWeb application",
++    "body": "Hi Saskia,\n\nThank you for applying to be our Designer. We had a lot of strong applicants this year and can't offer you a spot this time, but we hope you'll apply again.\n\nQWeb Exec",
++    "status": "draft",
++    "createdAt": "2026-10-23T05:28:02.223Z"
++  },
++  {
++    "key": "decision:00000000-0000-4000-8000-000000000007",
++    "to": "kwame.ellery@example.com",
++    "subject": "Your QWeb application",
++    "body": "Hi Kwame,\n\nThank you for applying to be our Developer. We had a lot of strong applicants this year and can't offer you a spot this time, but we hope you'll apply again.\n\nQWeb Exec",
++    "status": "draft",
++    "createdAt": "2026-10-23T05:28:02.223Z"
+   }
+ ]

@@ -23,11 +23,20 @@ importers:
 
   modules/applications:
     dependencies:
+      '@clubkit/outbox':
+        specifier: workspace:*
+        version: link:../outbox
       '@clubkit/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
 
   modules/events:
+    dependencies:
+      '@clubkit/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
+
+  modules/outbox:
     dependencies:
       '@clubkit/schemas':
         specifier: workspace:*
@@ -41,9 +50,21 @@ importers:
 
   packages/cli:
     dependencies:
+      '@clubkit/applications':
+        specifier: workspace:*
+        version: link:../../modules/applications
       '@clubkit/catalog':
         specifier: workspace:*
         version: link:../catalog
+      '@clubkit/outbox':
+        specifier: workspace:*
+        version: link:../../modules/outbox
+      '@clubkit/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
 
   packages/evals:
     dependencies:

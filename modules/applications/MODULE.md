@@ -9,6 +9,9 @@ and private storage.
 - Moving an applicant forward: `transition(application, "interview")`.
 - Asking what moves are legal: `allowedTransitions(status)`.
 - Reporting progress: `pipelineSummary(applications, position?)`.
+- Decision emails: `decisionEmails(applications, templates)` returns one email per
+  accepted or rejected applicant, keyed `decision:<id>`, for `draft` in the
+  `outbox` module. It sends nothing. See `skills/close-recruitment.md`.
 
 ## The pipeline
 
@@ -41,4 +44,4 @@ service role can read or write.
 
 ## Not yet included
 
-Form rendering, reviewer scoring, and decision emails.
+Form rendering, reviewer scoring, and interview scheduling.

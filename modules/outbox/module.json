@@ -1,0 +1,19 @@
+{
+  "name": "outbox",
+  "version": "0.1.0",
+  "status": "experimental",
+  "summary": "Drafts, exec approval, and send-once delivery for every email that reaches a real person, with a fake mailbox for tests.",
+  "useWhen": [
+    "Email applicants, members, or sponsors",
+    "Draft messages for an exec to approve before they go out",
+    "Make sure a re-run never emails someone twice",
+    "Test email-sending code without sending real email"
+  ],
+  "provides": {
+    "schemas": ["OutboxMessage", "EmailTemplate"],
+    "exports": ["draft", "approve", "sendApproved", "renderTemplate", "outboxSummary", "createFakeEmail"],
+    "migrations": ["migrations/0001_outbox.sql"]
+  },
+  "requires": [],
+  "verify": "pnpm vitest run modules/outbox"
+}

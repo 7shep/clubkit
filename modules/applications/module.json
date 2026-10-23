@@ -7,14 +7,15 @@
     "Open recruitment or hiring for a club",
     "Validate an application submitted through a form",
     "Move an applicant through review, interview, and decision",
-    "Summarize where applicants are in the pipeline"
+    "Summarize where applicants are in the pipeline",
+    "Email applicants their acceptance or rejection"
   ],
   "provides": {
-    "schemas": ["Application"],
-    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+    "schemas": ["Application", "OutboxMessage", "EmailTemplate"],
+    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary", "decisionEmails"],
     "migrations": ["migrations/0001_applications.sql"]
   },
-  "requires": [],
+  "requires": ["outbox"],
   "config": {
     "deadline": {
       "type": "string",

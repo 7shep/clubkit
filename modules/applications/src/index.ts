@@ -1,4 +1,11 @@
-import { ApplicationSchema, type Application, type ApplicationStatus } from "@clubkit/schemas";
+import { renderTemplate } from "@clubkit/outbox";
+import {
+  ApplicationSchema,
+  type Application,
+  type ApplicationStatus,
+  type EmailTemplate,
+  type OutgoingEmail,
+} from "@clubkit/schemas";
 
 /** Validate an incoming application. New submissions must arrive with status "submitted". */
 export function parseApplication(input: unknown, options: { deadline?: string; now?: Date } = {}): Application {
@@ -44,4 +51,25 @@ export function pipelineSummary(applications: Application[], position?: string):
     if (position === undefined || application.position === position) summary[application.status]++;
   }
   return summary;
+}
+
+/**
+ * One decision email per accepted or rejected applicant, ready for `draft` in the outbox.
+ * Withdrawn and undecided applicants get none. The key is `decision:<id>`, so an applicant
+ * gets at most one decision email however often this runs. Templates can use
+ * {{firstName}}, {{fullName}}, and {{position}}.
+ */
+export function decisionEmails(
+  applications: Application[],
+  templates: { accepted: EmailTemplate; rejected: EmailTemplate },
+): OutgoingEmail[] {
+  return applications.flatMap((application) => {
+    if (application.status !== "accepted" && application.status !== "rejected") return [];
+    const fields = {
+      firstName: application.fullName.trim().split(/\s+/)[0],
+      fullName: application.fullName,
+      position: application.position,
+    };
+    return [{ key: `decision:${application.id}`, to: application.email, ...renderTemplate(templates[application.status], fields) }];
+  });
 }

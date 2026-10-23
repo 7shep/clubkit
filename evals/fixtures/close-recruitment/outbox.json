@@ -1,0 +1,38 @@
+[
+  {
+    "key": "interview:00000000-0000-4000-8000-00000000000b",
+    "to": "elio.brannigan@example.com",
+    "subject": "QWeb interview: pick a time",
+    "body": "Hi Elio,\n\nWe'd like to interview you for Developer. Reply with a time that works this week.\n\nQWeb Exec",
+    "status": "sent",
+    "createdAt": "2026-11-10T14:00:00.000Z",
+    "approvedBy": "Priya Shah",
+    "approvedAt": "2026-11-10T18:00:00.000Z",
+    "sentAt": "2026-11-10T18:05:00.000Z",
+    "providerId": "msg_100b"
+  },
+  {
+    "key": "decision:00000000-0000-4000-8000-000000000002",
+    "to": "tobias.wren@example.com",
+    "subject": "Welcome to QWeb!",
+    "body": "Hi Tobias,\n\nCongratulations: we'd love to have you join QWeb as our new Developer. Your first meeting details are coming soon.\n\nQWeb Exec",
+    "status": "sent",
+    "createdAt": "2026-11-18T14:00:00.000Z",
+    "approvedBy": "Priya Shah",
+    "approvedAt": "2026-11-18T18:00:00.000Z",
+    "sentAt": "2026-11-18T18:05:00.000Z",
+    "providerId": "msg_1802"
+  },
+  {
+    "key": "decision:00000000-0000-4000-8000-000000000005",
+    "to": "rafael.dunmore@example.com",
+    "subject": "Your QWeb application",
+    "body": "Hi Rafael,\n\nThank you for applying to be our Developer. We had a lot of strong applicants this year and can't offer you a spot this time, but we hope you'll apply again.\n\nQWeb Exec",
+    "status": "sent",
+    "createdAt": "2026-11-18T14:00:00.000Z",
+    "approvedBy": "Priya Shah",
+    "approvedAt": "2026-11-18T18:00:00.000Z",
+    "sentAt": "2026-11-18T18:05:00.000Z",
+    "providerId": "msg_1805"
+  }
+]

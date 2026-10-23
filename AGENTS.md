@@ -18,4 +18,7 @@ clubkit is built to be used by agents. Find what you need instead of reading eve
 - Never edit a migration that is already in the repo: clubs may have applied it. Add the next
   numbered file (`0002_<change>.sql`) and list it in the manifest's `provides.migrations`.
 - Never commit real member or applicant data, Supabase keys, or `.env` files.
+- Anything that reaches a real person goes through `modules/outbox`: draft, a named exec
+  approves, then send. Never approve on an exec's behalf, even when asked to "send": draft,
+  report counts, and hand over the approve command.
 - TypeScript, ESM, pnpm workspaces, Vitest. No build step: packages export `src/` directly.

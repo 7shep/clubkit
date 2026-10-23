@@ -55,10 +55,12 @@ The claim: agents succeed more often with clubkit's agent layer than without it.
       branding), validated against module manifests. Module `config` fields read from it.
 - [ ] **Integration contract:** each integration is an injected adapter with a real implementation,
       a fake for tests, and a dry-run mode. Shapes live in `packages/schemas` like everything else.
-- [ ] **Email integration:** send through one provider (decide which with QWeb), plus a fake outbox.
+- [ ] **Email integration:** send through one provider (decide which with QWeb). The `EmailAdapter`
+      contract and a fake (`createFakeEmail`, `outbox send --fake`) exist in `modules/outbox`; a real
+      adapter must pass the message `key` as the provider's idempotency key.
 - [ ] **Calendar integration:** free/busy and invites (Google Calendar first; it's what execs use).
-- [ ] **Outbox and approvals:** drafts stored with a status (`draft → approved → sent`), who approved,
-      and when. Sending is idempotent: the same message to the same person never goes twice.
+- [x] **Outbox and approvals:** `modules/outbox`: `draft → approved → sent`, who approved and when,
+      one message per idempotency key. CLI: `pnpm clubkit outbox list|approve|send`.
 - [ ] **Audit log:** every action a workflow takes, readable by execs, with no personal data in public places.
 - [ ] Supabase setup guide: applying migrations in order, environment variables, and an `.env.example`.
 
@@ -66,15 +68,15 @@ The claim: agents succeed more often with clubkit's agent layer than without it.
 
 The most tedious and most visible job, and the first real production use.
 
-- [ ] **Decision emails:** accepted and rejected applicants each get one email after approval;
-      withdrawn and undecided applicants get none. The `scope-decision-emails` eval reference
-      (`evals/reference/scope-decision-emails.patch`) is a ready-made brief.
+- [x] **Decision emails:** `decisionEmails` in applications and `pnpm clubkit close-recruitment`:
+      one draft per accepted or rejected applicant, keyed `decision:<id>`; withdrawn and undecided get none.
+      Eval: `close-recruitment`.
 - [ ] **Interview scheduling:** offer slots from interviewers' calendars, let applicants pick, send
       invites, and move applicants to `interview` through `transition`.
 - [ ] **Reviewer scoring:** scores per reviewer with averages (the `applications-reviewer-scores`
       eval reference is a working start).
 - [ ] **Application form** rendered from the club's prompt config.
-- [ ] Playbook: `skills/close-recruitment.md` (decide → draft emails → approve → send → report counts).
+- [x] Playbook: `skills/close-recruitment.md` (decide → draft emails → approve → send → report counts).
 - [ ] Run QWeb's next recruitment cycle on it. Record every place the agent stalled and turn each into
       a doc fix or an eval task.
 
