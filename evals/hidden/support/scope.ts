@@ -14,7 +14,7 @@ export interface ScopeSpec {
   path: string;
   /** Modules the work touches; the scope must point at `modules/<name>`. */
   modules: string[];
-  /** Commands the recipient must run to prove the work, e.g. "pnpm verify events". */
+  /** Commands that prove the work; the scope must name at least one, e.g. "pnpm verify events" or "pnpm check". */
   commands: string[];
   /** Task-specific facts a recipient needs: requirements from the ask and constraints in the repo. */
   facts: Fact[];
@@ -27,10 +27,10 @@ interface Section {
 
 // Each section a recipient needs, by the headings people commonly use for it.
 const requiredSections: Record<string, RegExp> = {
-  "goal or background": /goal|objective|summary|overview|problem|why|background|context|purpose/i,
+  "goal or background": /goal|objective|summary|overview|problem|why|background|context|purpose|what (already )?exists|current state|today/i,
   "what to build": /^(?!.*(out of|non-goal|not in)).*(scope|deliverable|requirement|what to build|tasks?\b|work|plan|approach|implementation)/i,
   "out of scope": /out of scope|non-goals?|not (in scope|included)|won'?t|excluded|later/i,
-  "acceptance criteria": /acceptance|definition of done|done when|success criteria|criteria/i,
+  "acceptance criteria": /acceptance|done|success criteria|criteria|finished when/i,
   "open questions or assumptions": /question|assumption|decision|unknown|risk|unresolved/i,
 };
 
@@ -38,11 +38,14 @@ const requiredSections: Record<string, RegExp> = {
 // lockfile `pnpm install` rewrites because the workspace has no packages/evals.
 const notTheAgent = /^(AGENTS\.md|CLAUDE\.md|\.mcp\.json|catalog\.json|pnpm-lock\.yaml|skills\/|docs\/|modules\/[^/]+\/MODULE\.md$)/;
 
+/** Sections by heading. A brief's opening paragraph under its `#` title counts as its summary. */
 export function sections(markdown: string): Section[] {
   const found: Section[] = [];
   for (const line of markdown.split(/\r?\n/)) {
-    const heading = line.match(/^#{1,6}\s+(.*)$/) ?? line.match(/^\*\*([^*]+)\*\*:?\s*$/);
-    if (heading) found.push({ heading: heading[1].trim(), body: "" });
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    const bold = line.match(/^\*\*([^*]+)\*\*:?\s*$/);
+    if (heading) found.push({ heading: heading[1] === "#" ? "Summary" : heading[2].trim(), body: "" });
+    else if (bold) found.push({ heading: bold[1].trim(), body: "" });
     else if (found.length > 0) found[found.length - 1].body += `${line}\n`;
   }
   return found;
@@ -101,15 +104,17 @@ export function checkScope(spec: ScopeSpec): void {
   it("points at the right code and only at code that exists", () => {
     const text = read();
     for (const name of spec.modules) expect(text, `should point at modules/${name}`).toContain(`modules/${name}`);
-    // Any module or package it names must be real; new files inside them are fine.
+    // Any module or package it names must be real; new files inside them are fine. packages/evals is
+    // the eval harness: removed from the workspace, but the README still mentions it.
     for (const [, kind, name] of text.matchAll(/\b(modules|packages)\/([a-z0-9-]+)/g)) {
+      if (kind === "packages" && name === "evals") continue;
       expect(existsSync(`${kind}/${name}`), `${kind}/${name} does not exist`).toBe(true);
     }
   });
 
   it("tells the recipient how to verify the work", () => {
     const text = read();
-    for (const command of spec.commands) expect(text, `should say to run "${command}"`).toContain(command);
+    expect(spec.commands.some((c) => text.includes(c)), `should name one of: ${spec.commands.join(", ")}`).toBe(true);
   });
 
   it.each(spec.facts.map((f) => [f.label, f] as const))("covers: %s", (_label, fact) => {

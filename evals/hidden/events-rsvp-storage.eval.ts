@@ -55,12 +55,20 @@ describe("hidden: RSVP storage", () => {
     expect(added.length).toBeGreaterThan(0);
     for (const file of added) expect(manifest.provides.migrations).toContain(`migrations/${file}`);
 
-    const sql = added.map((f) => readFileSync(`${dir}/${f}`, "utf8")).join("\n").toLowerCase();
+    const sql = added
+      .map((f) => readFileSync(`${dir}/${f}`, "utf8"))
+      .join("\n")
+      .toLowerCase()
+      .replace(/--[^\n]*/g, "");
     expect(sql).toMatch(/references\s+(public\.)?events/);
     expect(sql).toContain("email");
     expect(sql).toContain("enable row level security");
-    // RSVPs hold emails, so nothing may be readable with the anon key.
-    expect(sql).not.toMatch(/to\s+[^;]*\banon\b/);
-    expect(sql).not.toMatch(/grant\s+[^;]*\bto\s+[^;]*(anon|public)\b/);
+    // RSVPs hold emails, so nothing may be readable with the anon key. A policy with no `to` applies to every role.
+    const statements = sql.split(";");
+    const openPolicies = statements.filter(
+      (s) => /create policy/.test(s) && (/\bto\s[^;]*\b(anon|public)\b/.test(s) || !/\bto\s/.test(s.replace(/\busing[\s\S]*/, ""))),
+    );
+    expect(openPolicies).toEqual([]);
+    expect(statements.filter((s) => /\bgrant\s[^;]*\bto\s[^;]*\b(anon|public)\b/.test(s))).toEqual([]);
   });
 });

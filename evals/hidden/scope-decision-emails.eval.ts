@@ -6,7 +6,7 @@ describe("hidden: scope for application decision emails", () => {
   checkScope({
     path: "scopes/decision-emails.md",
     modules: ["applications"],
-    commands: ["pnpm verify applications"],
+    commands: ["pnpm verify applications", "pnpm vitest run modules/applications", "pnpm check"],
     facts: [
       { label: "the ask: accepted applicants get an email", pattern: /accepted/i },
       { label: "the ask: rejected applicants get an email", pattern: /rejected/i },

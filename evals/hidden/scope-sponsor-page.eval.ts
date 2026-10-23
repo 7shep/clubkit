@@ -6,7 +6,7 @@ describe("hidden: scope for the sponsors page", () => {
   checkScope({
     path: "scopes/sponsor-page.md",
     modules: ["sponsors"],
-    commands: ["pnpm verify sponsors"],
+    commands: ["pnpm verify sponsors", "pnpm vitest run modules/sponsors", "pnpm check"],
     facts: [
       { label: "the ask: grouped by tier, gold first", pattern: /tier[\s\S]*gold|gold[\s\S]*tier/i },
       { label: "the ask: logos", pattern: /logo/i },

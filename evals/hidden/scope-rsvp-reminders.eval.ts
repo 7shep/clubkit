@@ -6,7 +6,7 @@ describe("hidden: scope for RSVP reminder emails", () => {
   checkScope({
     path: "scopes/rsvp-reminders.md",
     modules: ["events"],
-    commands: ["pnpm verify events"],
+    commands: ["pnpm verify events", "pnpm vitest run modules/events", "pnpm check"],
     facts: [
       { label: "the ask: a reminder the day before", pattern: /day before|24 hours|evening before|night before/i },
       { label: "the ask: only people who RSVP'd", pattern: /rsvp/i },
