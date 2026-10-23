@@ -8,8 +8,6 @@ export type Variant = "clubkit" | "baseline";
 // Files that exist only to help agents. The baseline variant removes them so the
 // comparison isolates the agent-facing layer; the code itself is identical.
 const guidancePaths = ["AGENTS.md", "CLAUDE.md", ".mcp.json", "skills", "docs", "catalog.json"];
-/** The same set as `git apply --exclude` globs. */
-export const guidanceGlobs = [...guidancePaths.map((p) => (p.includes(".") ? p : `${p}/*`)), "modules/*/MODULE.md"];
 const isGuidance = (path: string) =>
   guidancePaths.some((g) => path === g || path.startsWith(`${g}/`)) || /^modules\/[^/]+\/MODULE\.md$/.test(path);
 
@@ -50,12 +48,19 @@ export function createWorkspace(dir: string, variant: Variant, task: Task): Work
   return { dir, baseCommit, variant };
 }
 
+/**
+ * Guidance files the baseline workspace lacks: those tracked at the base commit. A
+ * `MODULE.md` for a module the agent creates is not among them; the agent writes it.
+ */
+export function removedGuidance(workspace: Workspace): string[] {
+  if (workspace.variant !== "baseline") return [];
+  return git(repoRoot, "ls-tree", "-r", "--name-only", workspace.baseCommit).split("\n").filter(isGuidance);
+}
+
 /** Restore guidance files the checks depend on (manifest docs), then add the task's hidden tests and their shared helpers. */
 export function prepareForChecks(workspace: Workspace, task: Task): void {
-  if (workspace.variant === "baseline") {
-    const guidance = git(repoRoot, "ls-tree", "-r", "--name-only", workspace.baseCommit).split("\n").filter(isGuidance);
-    if (guidance.length > 0) git(workspace.dir, "checkout", workspace.baseCommit, "--", ...guidance);
-  }
+  const guidance = removedGuidance(workspace);
+  if (guidance.length > 0) git(workspace.dir, "checkout", workspace.baseCommit, "--", ...guidance);
   const target = join(workspace.dir, "eval-hidden");
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target);

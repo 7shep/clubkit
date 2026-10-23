@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { referencePatchPath, type Task } from "./tasks";
-import { guidanceGlobs, runCommand, type Workspace } from "./workspace";
+import { removedGuidance, runCommand, type Workspace } from "./workspace";
 
 export interface AgentOptions {
   model?: string;
@@ -33,12 +33,12 @@ const noop: Agent = {
 
 /**
  * Applies the known-good patch. Every task should pass; a failure means the task or its checks are broken.
- * In baseline, hunks for guidance files are skipped: those files are absent, as they would be for a real agent.
+ * In baseline, hunks for the guidance files the workspace lacks are skipped, as they would be for a real agent.
  */
 const reference: Agent = {
   name: "reference",
   async run(task, workspace) {
-    const excludes = workspace.variant === "baseline" ? guidanceGlobs.map((g) => ` --exclude="${g}"`).join("") : "";
+    const excludes = removedGuidance(workspace).map((path) => ` --exclude="${path}"`).join("");
     const result = await runCommand(`git apply --whitespace=nowarn${excludes} "${referencePatchPath(task.id)}"`, workspace.dir);
     return { ok: result.exitCode === 0, durationMs: result.durationMs, summary: result.output || "applied reference patch" };
   },
