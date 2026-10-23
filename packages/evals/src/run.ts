@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -104,6 +104,8 @@ async function main(): Promise<number> {
   for (const [variant, s] of Object.entries(summary)) {
     console.log(`${variant.padEnd(9)} ${s.passed}/${s.total} passed (${Math.round(s.rate * 100)}%)${s.costUsd ? ` · $${s.costUsd.toFixed(2)}` : ""}`);
   }
+
+  if (!values.keep) rmSync(runDir, { recursive: true, force: true });
 
   const resultsDir = join(evalsDir, "results");
   mkdirSync(resultsDir, { recursive: true });

@@ -38,6 +38,9 @@ export function createWorkspace(dir: string, variant: Variant): Workspace {
   const tracked = git(dir, "ls-files").split("\n");
   const remove = tracked.filter((p) => isEvalHarness(p) || (variant === "baseline" && isGuidance(p)));
   for (const path of remove) rmSync(join(dir, path), { force: true });
+  // Drop the directories too, so empty folders like evals/hidden don't hint at what was removed.
+  const dirs = ["evals", "packages/evals", ...(variant === "baseline" ? guidancePaths : [])];
+  for (const path of dirs) rmSync(join(dir, path), { recursive: true, force: true });
   git(dir, "add", "-A");
   git(dir, "-c", "user.name=clubkit-eval", "-c", "user.email=eval@clubkit.invalid", "commit", "-q", "--no-verify", "-m", `eval workspace (${variant})`);
   return { dir, baseCommit, variant };
