@@ -23,8 +23,8 @@ what makes it safe to hand an agent the club's inbox.
 
 **Where it stands (2026-10-22):** two working modules, an MCP server, a CLI
 and manifest validator, two playbooks, and an eval runner with 16 tasks
-(sanity: noop 0/32, reference 32/32). The first Sonnet clubkit-versus-baseline
-run is in progress. No integrations, workflows, or club config yet. No club
+(sanity: noop 0/32, reference 32/32). The first Sonnet run scored 16/16
+clubkit vs 15/16 baseline: no meaningful gap yet (`evals/RESULTS.md`). No integrations, workflows, or club config yet. No club
 runs on it yet; QWeb is the first target.
 
 Work top to bottom. Each step is ordered by tedium × frequency × what's coming up
@@ -34,9 +34,13 @@ in the club year.
 
 The claim: agents succeed more often with clubkit's agent layer than without it.
 
-- [ ] Read the first Sonnet run; turn every clubkit-variant failure into a doc, MCP, or playbook fix.
-- [ ] Rerun with `--trials 3`, then with a second model.
-- [ ] Write up the results in `evals/RESULTS.md`: exact commands, commit, models, costs, per-task results.
+- [x] Read the first Sonnet run (`evals/RESULTS.md`): 16/16 clubkit vs 15/16 baseline after fixing
+      over-strict checks. No meaningful gap yet; Sonnet nearly saturates the task set.
+- [ ] Harder, less specified tasks where the conventions in `MODULE.md` and `AGENTS.md` are the trap,
+      so the task set can separate the variants.
+- [ ] Rerun with `--trials 3` and checks frozen, on Sonnet and a weaker model (Haiku).
+- [ ] Record the resolved model ID in results (the `sonnet` alias is all that's saved today).
+- [x] Write up the results in `evals/RESULTS.md`: exact commands, commit, models, costs, per-task results.
 - [ ] `pnpm eval:report`: aggregate `evals/results/*.json` into success rate per variant and model,
       with confidence intervals, mean cost, turns, and duration, plus per-task breakdowns.
 - [ ] Ablations: variants that remove only the MCP server, only `MODULE.md`, or only `AGENTS.md`.

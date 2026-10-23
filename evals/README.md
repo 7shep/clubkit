@@ -8,7 +8,8 @@ These tasks measure how well an AI agent can use clubkit. The headline number is
 | `clubkit` | The full repo: `AGENTS.md`, `CLAUDE.md`, the MCP server, `skills/`, `docs/`, `catalog.json`, every `MODULE.md` |
 | `baseline` | The same code with all of that removed |
 
-The gap between the two is the value of the agent-facing layer.
+The gap between the two is the value of the agent-facing layer. Results so far
+are in [RESULTS.md](RESULTS.md).
 
 ## Tasks
 
