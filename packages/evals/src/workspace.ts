@@ -8,6 +8,8 @@ export type Variant = "clubkit" | "baseline";
 // Files that exist only to help agents. The baseline variant removes them so the
 // comparison isolates the agent-facing layer; the code itself is identical.
 const guidancePaths = ["AGENTS.md", "CLAUDE.md", ".mcp.json", "skills", "docs", "catalog.json"];
+/** The same set as `git apply --exclude` globs. */
+export const guidanceGlobs = [...guidancePaths.map((p) => (p.includes(".") ? p : `${p}/*`)), "modules/*/MODULE.md"];
 const isGuidance = (path: string) =>
   guidancePaths.some((g) => path === g || path.startsWith(`${g}/`)) || /^modules\/[^/]+\/MODULE\.md$/.test(path);
 
