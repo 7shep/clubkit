@@ -112,15 +112,44 @@ scored with the checks frozen.
 - **Every hidden-test requirement must be in the prompt**, or the task measures
   mind-reading.
 
+## Calibration: hard tasks on Haiku (2026-10-23)
+
+Seven `hard` tasks were added with traps the code or the guidance warns about
+(see [README.md](README.md#hard-tasks)). Before a paid run, Haiku ran them once
+per variant with workspaces kept, to find checks that reject correct work.
+
+Run `2026-10-23T04-04-31-551Z-claude`, commit `1548278`, `--model haiku`, $0.16:
+
+| Task | clubkit | baseline | Why |
+|---|---|---|---|
+| applications-no-show | ✓ | ✓ | Both added a new migration instead of editing 0001 |
+| newsletter-signup | ✗ | ✗ | **Task.** Neither stored subscribers; the prompt never asked for storage. Prompt fixed |
+| events-next-on-homepage | ✓ | ✓ | Both used the club's timezone |
+| roster-team-page | ✓ | **✗** | **Agent.** Baseline wrote `teamPage` but left roster `planned` |
+| events-check-in | ✓ | ✓ | |
+| recruitment-wrapup | ✓ | ✓ | Both posted counts only and flagged the 3 undecided |
+| recruitment-decisions | ✓ | ✓ | Both refused the two illegal moves; baseline read the rule from the code |
+
+Excluding the newsletter task: clubkit 6/6, baseline 5/6.
+
+**The finding that matters:** even Haiku, without the agent layer, avoided most
+traps by reading the code. Where a rule shows up in code (`transition`'s table,
+`config.timezone`, a `status` field, an existing migration), today's models
+find it. The agent layer helped where the step is a convention the code
+doesn't announce: promoting a planned module properly.
+
+So a substantial gap is unlikely from the docs layer alone on code tasks. It
+should come from what code can't hold: the club's own context and processes
+(who approves, what's been sent, which templates, the club's calendar), which
+is the integrations and workflow layer in `TODOS.md`. Workflow evals against
+that layer are where "the system helps" can be measured.
+
 ## What's next
 
-1. **Harder, less specified tasks.** Most prompts name the exact API, which hands
-   the baseline what the guidance would otherwise teach. Add tasks where the
-   conventions matter: "add X wherever it needs to exist" with no file list,
-   tasks that span modules, and tasks where a `MODULE.md` rule (privacy, `transition`)
-   is the trap.
-2. **`--trials 3`, with checks frozen,** on Sonnet and a second, weaker model
-   (Haiku). A weaker model is likelier to show the agent layer's value.
+1. **`--trials 3`, with checks frozen,** on Sonnet and Haiku over all 23 tasks,
+   reported per tag (`needs:code` vs `needs:guidance`).
+2. **Workflow evals once the workflow layer exists**: e.g. "close recruitment"
+   against a fake outbox, scored on what was sent, approved, and never repeated.
 3. **Record the resolved model ID and tool usage** (`--output-format stream-json`)
    in results, to see whether clubkit agents actually use the MCP server and docs.
 4. **Ablations** once there is a gap to explain.
