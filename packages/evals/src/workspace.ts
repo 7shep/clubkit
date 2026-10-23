@@ -13,6 +13,10 @@ export const guidanceGlobs = [...guidancePaths.map((p) => (p.includes(".") ? p :
 const isGuidance = (path: string) =>
   guidancePaths.some((g) => path === g || path.startsWith(`${g}/`)) || /^modules\/[^/]+\/MODULE\.md$/.test(path);
 
+// The tasks, answers, and runner itself. Removed from every workspace so agents
+// cannot read the answers and `pnpm check` stays green without them.
+const isEvalHarness = (path: string) => path.startsWith("evals/") || path.startsWith("packages/evals/");
+
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
@@ -23,8 +27,8 @@ export interface Workspace {
 }
 
 /**
- * Create a detached git worktree of HEAD for one attempt. Eval answers (evals/)
- * are always removed; baseline also removes guidance. The removal is committed so
+ * Create a detached git worktree of HEAD for one attempt. The eval harness is
+ * always removed; baseline also removes guidance. The removal is committed so
  * the agent sees a clean tree.
  */
 export function createWorkspace(dir: string, variant: Variant): Workspace {
@@ -32,7 +36,7 @@ export function createWorkspace(dir: string, variant: Variant): Workspace {
   git(repoRoot, "worktree", "add", "--detach", "--force", dir, baseCommit);
 
   const tracked = git(dir, "ls-files").split("\n");
-  const remove = tracked.filter((p) => p.startsWith("evals/") || (variant === "baseline" && isGuidance(p)));
+  const remove = tracked.filter((p) => isEvalHarness(p) || (variant === "baseline" && isGuidance(p)));
   for (const path of remove) rmSync(join(dir, path), { force: true });
   git(dir, "add", "-A");
   git(dir, "-c", "user.name=clubkit-eval", "-c", "user.email=eval@clubkit.invalid", "commit", "-q", "--no-verify", "-m", `eval workspace (${variant})`);

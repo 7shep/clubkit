@@ -25,7 +25,7 @@ task, the task measures nothing; if `reference` fails one, its checks are broken
 ## How an attempt works
 
 1. A detached git worktree of `HEAD` is created in the system temp folder.
-   `evals/` is deleted (it holds the answers), and for `baseline` the guidance
+   `evals/` and `packages/evals/` are deleted (they hold the answers), and for `baseline` the guidance
    files too. The deletion is committed so the agent sees a clean tree.
 2. `pnpm install`, then the agent gets only the task's `prompt`.
 3. Baseline guidance is restored (manifest checks need `MODULE.md`), and the
