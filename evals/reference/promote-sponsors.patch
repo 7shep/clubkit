@@ -1,0 +1,139 @@
+diff --git a/modules/sponsors/MODULE.md b/modules/sponsors/MODULE.md
+index 9abf7d5..24400c0 100644
+--- a/modules/sponsors/MODULE.md
++++ b/modules/sponsors/MODULE.md
+@@ -1,14 +1,19 @@
+ # sponsors
+ 
+-**Status: planned.** Nothing here is implemented yet; do not import it.
+-
+ Sponsor listings with tiers and logos for club websites and sponsorship packages.
+ 
+-## Extraction source
++## Use it for
++
++- Showing sponsors grouped by tier: `sponsorsByTier(sponsors, ["platinum", "gold", "silver"])`.
++
++## Contract
++
++Shape: `Sponsor` from `@clubkit/schemas`. Tiers are free text; the caller's
++`tierOrder` decides display order, and anything else is grouped under "other".
+ 
+-QWeb's `sponsors` table (`20260905000001_create_sponsors.sql`).
++Storage: `migrations/0001_sponsors.sql` creates `public.sponsors` with public read
++access. Only the service role can write.
+ 
+-## Before building
++## Rules for agents
+ 
+-Follow `skills/add-a-module.md`, then change `status` to `experimental` and
+-add a `verify` command.
++- After changing this module, run `pnpm verify sponsors`.
+diff --git a/modules/sponsors/migrations/0001_sponsors.sql b/modules/sponsors/migrations/0001_sponsors.sql
+new file mode 100644
+index 0000000..29ebd88
+--- /dev/null
++++ b/modules/sponsors/migrations/0001_sponsors.sql
+@@ -0,0 +1,18 @@
++-- Generalized from QWeb's sponsors table. Public read, writes via service role only.
++create table if not exists public.sponsors (
++  id uuid primary key default gen_random_uuid(),
++  name text not null,
++  tier text,
++  website_url text,
++  logo_path text,
++  created_at timestamptz not null default now()
++);
++
++alter table public.sponsors enable row level security;
++
++create policy "Sponsors are publicly readable"
++  on public.sponsors for select
++  to anon, authenticated
++  using (true);
++
++revoke insert, update, delete on public.sponsors from anon, authenticated;
+diff --git a/modules/sponsors/module.json b/modules/sponsors/module.json
+index 8235dbf..3259f65 100644
+--- a/modules/sponsors/module.json
++++ b/modules/sponsors/module.json
+@@ -1,10 +1,15 @@
+ {
+   "name": "sponsors",
+-  "version": "0.0.0",
+-  "status": "planned",
++  "version": "0.1.0",
++  "status": "experimental",
+   "summary": "Sponsor listings with tiers and logos for club websites and sponsorship packages.",
+   "useWhen": ["Show sponsors on a club site", "Track sponsor tiers"],
+-  "provides": { "schemas": ["Sponsor"], "exports": [], "migrations": [] },
++  "provides": {
++    "schemas": ["Sponsor"],
++    "exports": ["sponsorsByTier"],
++    "migrations": ["migrations/0001_sponsors.sql"]
++  },
+   "requires": [],
+-  "config": {}
++  "config": {},
++  "verify": "pnpm vitest run modules/sponsors"
+ }
+diff --git a/modules/sponsors/package.json b/modules/sponsors/package.json
+new file mode 100644
+index 0000000..ac6036f
+--- /dev/null
++++ b/modules/sponsors/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "@clubkit/sponsors",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "main": "src/index.ts",
++  "dependencies": {
++    "@clubkit/schemas": "workspace:*"
++  }
++}
+diff --git a/modules/sponsors/src/index.ts b/modules/sponsors/src/index.ts
+new file mode 100644
+index 0000000..2d05e83
+--- /dev/null
++++ b/modules/sponsors/src/index.ts
+@@ -0,0 +1,18 @@
++import type { Sponsor } from "@clubkit/schemas";
++
++export interface SponsorTier {
++  tier: string;
++  sponsors: Sponsor[];
++}
++
++/** Group sponsors in `tierOrder`, sorted by name; unknown or missing tiers go last under "other". */
++export function sponsorsByTier(sponsors: Sponsor[], tierOrder: string[]): SponsorTier[] {
++  const groups = new Map<string, Sponsor[]>([...tierOrder, "other"].map((tier) => [tier, []]));
++  for (const sponsor of sponsors) {
++    const tier = sponsor.tier !== undefined && tierOrder.includes(sponsor.tier) ? sponsor.tier : "other";
++    groups.get(tier)!.push(sponsor);
++  }
++  return [...groups]
++    .filter(([, members]) => members.length > 0)
++    .map(([tier, members]) => ({ tier, sponsors: members.sort((a, b) => a.name.localeCompare(b.name)) }));
++}
+diff --git a/modules/sponsors/src/sponsors.test.ts b/modules/sponsors/src/sponsors.test.ts
+new file mode 100644
+index 0000000..5620c92
+--- /dev/null
++++ b/modules/sponsors/src/sponsors.test.ts
+@@ -0,0 +1,14 @@
++import { describe, expect, it } from "vitest";
++import { sponsorsByTier } from "./index";
++
++const sponsor = (name: string, tier?: string) => ({ id: "3f2504e0-4f89-11d3-9a0c-0305e82c3301", name, tier });
++
++describe("sponsors", () => {
++  it("groups by tier order with leftovers last", () => {
++    const groups = sponsorsByTier([sponsor("B", "gold"), sponsor("A", "gold"), sponsor("C")], ["gold", "silver"]);
++    expect(groups.map((g) => [g.tier, g.sponsors.map((s) => s.name)])).toEqual([
++      ["gold", ["A", "B"]],
++      ["other", ["C"]],
++    ]);
++  });
++});

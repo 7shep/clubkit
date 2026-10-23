@@ -1,0 +1,36 @@
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..56adce6 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -41,6 +41,9 @@ describe("events", () => {
+     const overnight = eventToIcs({ ...base, startTime: "23:00", durationMinutes: 120 });
+     expect(overnight).toContain("DTEND;TZID=America/Toronto:20261106T010000");
+ 
++    const multiDay = eventToIcs({ ...base, date: "2026-11-13", startTime: "18:00", durationMinutes: 48 * 60 });
++    expect(multiDay).toContain("DTEND;TZID=America/Toronto:20261115T180000");
++
+     const allDay = eventToIcs({ ...base, date: "2026-12-31" });
+     expect(allDay).toContain("DTSTART;VALUE=DATE:20261231");
+     expect(allDay).toContain("DTEND;VALUE=DATE:20270101");
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..b616f4f 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -30,13 +30,11 @@ export function eventToIcs(event: Event, timezone = "America/Toronto"): string {
+   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//clubkit//events//EN", "BEGIN:VEVENT", `UID:${event.id}@clubkit`];
+ 
+   if (event.startTime) {
+-    const [hours, minutes] = event.startTime.split(":").map(Number);
+-    const start = new Date(Date.UTC(2000, 0, 1, hours, minutes));
++    // Wall-clock arithmetic in UTC so the end can land on any later day.
++    const start = new Date(`${event.date}T${event.startTime}:00Z`);
+     const end = new Date(start.getTime() + (event.durationMinutes ?? 60) * 60_000);
+-    const hhmm = (d: Date) => `${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}00`;
+-    // Events that run past midnight end on the following day.
+-    const endDay = end.getUTCDate() > 1 ? nextDay(event.date) : day;
+-    lines.push(`DTSTART;TZID=${timezone}:${day}T${hhmm(start)}`, `DTEND;TZID=${timezone}:${endDay}T${hhmm(end)}`);
++    const stamp = (d: Date) => d.toISOString().slice(0, 16).replace(/[-:]/g, "") + "00";
++    lines.push(`DTSTART;TZID=${timezone}:${stamp(start)}`, `DTEND;TZID=${timezone}:${stamp(end)}`);
+   } else {
+     lines.push(`DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${nextDay(event.date)}`);
+   }

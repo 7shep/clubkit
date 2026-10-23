@@ -16,8 +16,9 @@ packages/schemas      shared Zod contracts: Member, Event, Application, Sponsor,
 packages/catalog      loads, validates, and verifies modules
 packages/cli          `pnpm clubkit` commands
 packages/mcp          MCP server exposing the catalog, docs, skills, and verify
+packages/evals        eval runner: isolated worktrees, agents, hidden tests, scoring
 skills/               step-by-step playbooks for club tasks
-evals/                tasks for measuring how well agents use the repo
+evals/                tasks, hidden tests, and reference solutions for agent evals
 docs/module-spec.md   the module contract
 ```
 
@@ -38,7 +39,14 @@ pnpm catalog           # validate manifests and regenerate catalog.json
 pnpm verify [module]   # run module verify commands
 pnpm check             # typecheck + validate + tests
 pnpm mcp               # start the MCP server on stdio
+pnpm eval --help       # measure agent success with and without clubkit's agent layer
 ```
+
+## Evals
+
+`pnpm eval` gives Claude Code real club tasks in throwaway worktrees and scores
+the results with hidden tests, once with the full repo and once with the
+agent-facing layer removed. See [evals/README.md](evals/README.md).
 
 `.mcp.json` registers the server for MCP clients opened in this folder, such as
 Claude Code. Tools: `list_modules`, `get_module`, `verify_module`,

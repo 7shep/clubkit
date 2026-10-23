@@ -1,6 +1,6 @@
 {
   "id": "promote-sponsors",
-  "prompt": "Make the sponsors module usable: sponsors should be listable by tier in a configurable tier order, with a public-read Supabase table. Follow the repo's conventions for modules.",
+  "prompt": "Make the sponsors module usable. Export `sponsorsByTier(sponsors, tierOrder)` from `modules/sponsors/src/index.ts`. It returns `{ tier, sponsors }[]` in `tierOrder` order, with sponsors sorted by name within each tier and empty tiers left out. Sponsors with no tier, or a tier not in `tierOrder`, are grouped last under the tier \"other\". Add a publicly readable Supabase table for sponsors, and follow the repo's module conventions so the module validates and verifies.",
   "modules": ["sponsors"],
-  "checks": ["pnpm verify sponsors", "pnpm typecheck", "pnpm validate"]
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify sponsors", "pnpm typecheck", "pnpm validate"]
 }

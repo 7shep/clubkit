@@ -14,6 +14,7 @@
     "validate": "tsx packages/cli/src/index.ts validate",
     "verify": "tsx packages/cli/src/index.ts verify",
     "mcp": "tsx packages/mcp/src/server.ts",
+    "eval": "tsx packages/evals/src/run.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "check": "pnpm typecheck && pnpm validate && pnpm test"

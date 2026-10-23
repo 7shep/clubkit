@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "clubkit": {
-      "command": "pnpm",
-      "args": ["--silent", "mcp"]
+      "command": "node",
+      "args": ["--import", "tsx", "packages/mcp/src/server.ts"]
     }
   }
 }

@@ -1,0 +1,90 @@
+diff --git a/modules/applications/MODULE.md b/modules/applications/MODULE.md
+index c1a51b5..5ccbd63 100644
+--- a/modules/applications/MODULE.md
++++ b/modules/applications/MODULE.md
+@@ -14,7 +14,8 @@ and private storage.
+ 
+ ```
+ submitted ─→ reviewing ─→ interview ─→ accepted
+-    │            │            │     └─→ rejected
++    │            │            │     ├─→ rejected
++    │            │            │     └─→ waitlisted ─→ accepted / rejected
+     │            ├─→ accepted
+     └─→ rejected └─→ rejected
+ any open state ─→ withdrawn
+diff --git a/modules/applications/migrations/0002_waitlisted_status.sql b/modules/applications/migrations/0002_waitlisted_status.sql
+new file mode 100644
+index 0000000..8b623f3
+--- /dev/null
++++ b/modules/applications/migrations/0002_waitlisted_status.sql
+@@ -0,0 +1,4 @@
++-- Allow applicants to be waitlisted after interview.
++alter table public.applications drop constraint if exists applications_status_check;
++alter table public.applications add constraint applications_status_check
++  check (status in ('submitted', 'reviewing', 'interview', 'waitlisted', 'accepted', 'rejected', 'withdrawn'));
+diff --git a/modules/applications/module.json b/modules/applications/module.json
+index fd0866b..2c7d7c7 100644
+--- a/modules/applications/module.json
++++ b/modules/applications/module.json
+@@ -10,9 +10,19 @@
+     "Summarize where applicants are in the pipeline"
+   ],
+   "provides": {
+-    "schemas": ["Application"],
+-    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+-    "migrations": ["migrations/0001_applications.sql"]
++    "schemas": [
++      "Application"
++    ],
++    "exports": [
++      "parseApplication",
++      "allowedTransitions",
++      "transition",
++      "pipelineSummary"
++    ],
++    "migrations": [
++      "migrations/0001_applications.sql",
++      "migrations/0002_waitlisted_status.sql"
++    ]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..7cb4576 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -35,6 +35,8 @@ describe("applications", () => {
+     expect(() => transition(base, "interview")).toThrow(/Allowed: reviewing, rejected, withdrawn/);
+     expect(() => transition({ ...base, status: "accepted" }, "rejected")).toThrow(/final/);
+     expect(allowedTransitions("rejected")).toEqual([]);
++    expect(transition(transition(interviewing, "waitlisted"), "accepted").status).toBe("accepted");
++    expect(() => transition(base, "waitlisted")).toThrow();
+   });
+ 
+   it("summarizes the pipeline per position", () => {
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..add4350 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -18,7 +18,8 @@ export function parseApplication(input: unknown, options: { deadline?: string; n
+ const transitions: Record<ApplicationStatus, readonly ApplicationStatus[]> = {
+   submitted: ["reviewing", "rejected", "withdrawn"],
+   reviewing: ["interview", "accepted", "rejected", "withdrawn"],
+-  interview: ["accepted", "rejected", "withdrawn"],
++  interview: ["accepted", "rejected", "waitlisted", "withdrawn"],
++  waitlisted: ["accepted", "rejected", "withdrawn"],
+   accepted: [],
+   rejected: [],
+   withdrawn: [],
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..e285eef 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -34,6 +34,7 @@ export const ApplicationStatusSchema = z.enum([
+   "submitted",
+   "reviewing",
+   "interview",
++  "waitlisted",
+   "accepted",
+   "rejected",
+   "withdrawn",

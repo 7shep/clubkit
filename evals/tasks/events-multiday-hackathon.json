@@ -1,0 +1,6 @@
+{
+  "id": "events-multiday-hackathon",
+  "prompt": "Our hackathon runs for 48 hours starting 2026-11-13 at 18:00 in Mitchell Hall. When we export it to a calendar file, the end date is wrong. Fix the events module so events of any length end at the right date and time, and add a test for it.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck"]
+}

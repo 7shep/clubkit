@@ -1,6 +1,6 @@
 {
   "id": "applications-waitlist",
-  "prompt": "We want a 'waitlisted' outcome for applicants after interview. Waitlisted applicants can later be accepted or rejected. Add it everywhere it needs to exist and keep the pipeline enforced.",
+  "prompt": "We want a 'waitlisted' outcome for applicants after interview. Waitlisted applicants can later be accepted or rejected, or withdraw. Add it everywhere it needs to exist, including the database, and keep the pipeline enforced.",
   "modules": ["applications"],
-  "checks": ["pnpm verify applications", "pnpm typecheck", "pnpm validate"]
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck", "pnpm validate"]
 }
