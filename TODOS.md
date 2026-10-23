@@ -6,8 +6,8 @@ the parts they need, with evals that prove the agent-facing layer helps.
 
 **Where it stands (2026-10-22):** two working modules (`events`,
 `applications`), three planned (`site-core`, `roster`, `sponsors`), a manifest
-validator and CLI, an MCP server, two playbooks, and an eval runner with three
-tasks. Sanity checks pass (noop 0/6, reference 6/6), and one Claude Code
+validator and CLI, an MCP server, two playbooks, and an eval runner with 16
+tasks. Sanity checks pass (noop 0/32, reference 32/32), and one Claude Code
 smoke test passed. No real clubkit-versus-baseline comparison has been run yet.
 
 Work roughly top to bottom: each section makes the ones after it worth more.
@@ -17,18 +17,21 @@ Work roughly top to bottom: each section makes the ones after it worth more.
 The headline claim is "agents succeed more often with clubkit's agent layer
 than without it." Nothing supports that yet.
 
-- [ ] Grow the task set to 12–15 tasks. Three tasks cannot support a success
-      rate. Mix sizes and modules; candidates:
-  - [ ] Events: add RSVP storage with a cap that refuses sign-ups once full.
-  - [ ] Events: recurring weekly events (e.g. "every Thursday until Dec 4").
-  - [ ] Events: list upcoming events for a site that only has a timezone and the current instant.
-  - [ ] Applications: reviewer scores with an average per applicant.
-  - [ ] Applications: reopen a closed position without losing past decisions.
-  - [ ] Applications: export accepted applicants as CSV, with no demographic fields.
-  - [ ] Roster: promote the module, with a `Member` table that keeps emails private.
-  - [ ] Roster: exec handoff that moves a role from one member to another and records the date.
-  - [ ] Cross-module: an event page that also lists the sponsors for that event.
-  - [ ] Ambiguous prompt: one task phrased loosely, the way a non-technical exec would ask.
+- [x] Grow the task set to 12–15 tasks. 16 tasks now, listed in `evals/README.md`:
+  - [x] Events: add RSVP storage with a cap that refuses sign-ups once full (`events-rsvp-storage`).
+  - [x] Events: recurring weekly events, e.g. "every Thursday until Dec 4" (`events-recurring-weekly`).
+  - [x] Events: list upcoming events for a site that only has a timezone and the current instant (`events-upcoming-timezone`).
+  - [x] Applications: reviewer scores with an average per applicant (`applications-reviewer-scores`).
+  - [x] Applications: reopen a closed position without losing past decisions (`applications-reopen-position`).
+  - [x] Applications: export accepted applicants as CSV, with no demographic fields (`applications-accepted-csv`).
+  - [x] Roster: promote the module, with a `Member` table that keeps emails private (`roster-promote`).
+  - [x] Roster: exec handoff that moves a role from one member to another and records the date (`roster-exec-handoff`).
+  - [x] Cross-module: an event page that also lists the sponsors for that event (`event-page-sponsors`).
+  - [x] Ambiguous prompt: one task phrased loosely, the way a non-technical exec would ask (`applications-position-typos`).
+  - [x] Hand out work: the agent writes a scope for someone else instead of building it
+        (`scope-rsvp-reminders`, `scope-decision-emails`, `scope-sponsor-page`).
+- [ ] Scope quality beyond structure: an LLM-judge check (does a newcomer know what to do?) to sit
+      alongside the structural checks in `evals/hidden/support/scope.ts`.
 - [ ] Run sanity checks after every task change (`--agent noop` must pass 0, `--agent reference` must pass all).
 - [ ] Run the comparison: `pnpm eval --model sonnet --trials 3`, then repeat with a second model.
 - [ ] Add `pnpm eval:report`: aggregate `evals/results/*.json` into success rate per variant and model,

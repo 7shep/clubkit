@@ -1,0 +1,170 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..51ff006 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -10,11 +10,13 @@
+         "Open recruitment or hiring for a club",
+         "Validate an application submitted through a form",
+         "Move an applicant through review, interview, and decision",
+-        "Summarize where applicants are in the pipeline"
++        "Summarize where applicants are in the pipeline",
++        "Score applicants and rank them by average reviewer score"
+       ],
+       "requires": [],
+       "schemas": [
+-        "Application"
++        "Application",
++        "ReviewScore"
+       ],
+       "path": "modules/applications"
+     },
+diff --git a/modules/applications/MODULE.md b/modules/applications/MODULE.md
+index c1a51b5..d6f58d1 100644
+--- a/modules/applications/MODULE.md
++++ b/modules/applications/MODULE.md
+@@ -9,6 +9,7 @@ and private storage.
+ - Moving an applicant forward: `transition(application, "interview")`.
+ - Asking what moves are legal: `allowedTransitions(status)`.
+ - Reporting progress: `pipelineSummary(applications, position?)`.
++- Ranking applicants: `averageScores(scores)` gives the average and reviewer count per application.
+ 
+ ## The pipeline
+ 
+@@ -30,7 +31,8 @@ prompt ids to text, so each club defines its questions without schema changes.
+ 
+ Storage: `migrations/0001_applications.sql` creates `public.applications` and a
+ private `application-resumes` bucket. There are no RLS policies: only the
+-service role can read or write.
++service role can read or write. `migrations/0002_review_scores.sql` adds
++`public.review_scores` (one score per reviewer per application) on the same terms.
+ 
+ ## Rules for agents
+ 
+@@ -41,4 +43,4 @@ service role can read or write.
+ 
+ ## Not yet included
+ 
+-Form rendering, reviewer scoring, and decision emails.
++Form rendering and decision emails.
+diff --git a/modules/applications/migrations/0002_review_scores.sql b/modules/applications/migrations/0002_review_scores.sql
+new file mode 100644
+index 0000000..c5f7b98
+--- /dev/null
++++ b/modules/applications/migrations/0002_review_scores.sql
+@@ -0,0 +1,13 @@
++-- Reviewer scores are part of an applicant's record: RLS is on with no policies,
++-- so only the service role can read or write.
++create table if not exists public.review_scores (
++  id uuid primary key default gen_random_uuid(),
++  application_id uuid not null references public.applications (id) on delete cascade,
++  reviewer text not null,
++  score integer not null check (score between 1 and 5),
++  comment text,
++  scored_at timestamptz not null default now(),
++  unique (application_id, reviewer)
++);
++
++alter table public.review_scores enable row level security;
+diff --git a/modules/applications/module.json b/modules/applications/module.json
+index fd0866b..9d85498 100644
+--- a/modules/applications/module.json
++++ b/modules/applications/module.json
+@@ -7,12 +7,13 @@
+     "Open recruitment or hiring for a club",
+     "Validate an application submitted through a form",
+     "Move an applicant through review, interview, and decision",
+-    "Summarize where applicants are in the pipeline"
++    "Summarize where applicants are in the pipeline",
++    "Score applicants and rank them by average reviewer score"
+   ],
+   "provides": {
+-    "schemas": ["Application"],
+-    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+-    "migrations": ["migrations/0001_applications.sql"]
++    "schemas": ["Application", "ReviewScore"],
++    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary", "averageScores"],
++    "migrations": ["migrations/0001_applications.sql", "migrations/0002_review_scores.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..b18338d 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Application } from "@clubkit/schemas";
+-import { allowedTransitions, parseApplication, pipelineSummary, transition } from "./index";
++import { allowedTransitions, averageScores, parseApplication, pipelineSummary, transition } from "./index";
+ 
+ const base: Application = {
+   id: "0b6f2b5e-3a3c-4d8e-9f0a-1c2d3e4f5a6b",
+@@ -46,4 +46,9 @@ describe("applications", () => {
+     expect(pipelineSummary(apps)).toMatchObject({ submitted: 1, reviewing: 1, accepted: 1, rejected: 0 });
+     expect(pipelineSummary(apps, "Developer")).toMatchObject({ submitted: 1, reviewing: 1, accepted: 0 });
+   });
++
++  it("averages reviewer scores, keeping each reviewer's last score", () => {
++    const score = (reviewer: string, value: number) => ({ applicationId: base.id, reviewer, score: value });
++    expect(averageScores([score("a", 2), score("b", 4), score("a", 5)])).toEqual({ [base.id]: { average: 4.5, count: 2 } });
++  });
+ });
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..8113748 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -1,4 +1,4 @@
+-import { ApplicationSchema, type Application, type ApplicationStatus } from "@clubkit/schemas";
++import { ApplicationSchema, type Application, type ApplicationStatus, type ReviewScore } from "@clubkit/schemas";
+ 
+ /** Validate an incoming application. New submissions must arrive with status "submitted". */
+ export function parseApplication(input: unknown, options: { deadline?: string; now?: Date } = {}): Application {
+@@ -45,3 +45,21 @@ export function pipelineSummary(applications: Application[], position?: string):
+   }
+   return summary;
+ }
++
++/**
++ * Average score and reviewer count per application id. When a reviewer scores
++ * the same applicant more than once, only their last score (in array order) counts.
++ */
++export function averageScores(scores: ReviewScore[]): Record<string, { average: number; count: number }> {
++  const latest = new Map<string, Map<string, number>>();
++  for (const { applicationId, reviewer, score } of scores) {
++    if (!latest.has(applicationId)) latest.set(applicationId, new Map());
++    latest.get(applicationId)!.set(reviewer, score);
++  }
++  return Object.fromEntries(
++    [...latest].map(([id, byReviewer]) => {
++      const values = [...byReviewer.values()];
++      return [id, { average: values.reduce((sum, v) => sum + v, 0) / values.length, count: values.length }];
++    }),
++  );
++}
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..7bc2325 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -57,6 +57,14 @@ export const ApplicationSchema = z.object({
+ });
+ export type Application = z.infer<typeof ApplicationSchema>;
+ 
++export const ReviewScoreSchema = z.object({
++  applicationId: z.string().uuid(),
++  reviewer: z.string().min(1).describe("Who gave the score, e.g. an exec's email"),
++  score: z.number().int().min(1).max(5),
++  comment: z.string().optional(),
++});
++export type ReviewScore = z.infer<typeof ReviewScoreSchema>;
++
+ export const SponsorSchema = z.object({
+   id: z.string().uuid(),
+   name: z.string().min(1),
+@@ -71,6 +79,7 @@ export const sharedSchemas = {
+   Member: MemberSchema,
+   Event: EventSchema,
+   Application: ApplicationSchema,
++  ReviewScore: ReviewScoreSchema,
+   Sponsor: SponsorSchema,
+ } as const;
+ export type SharedSchemaName = keyof typeof sharedSchemas;

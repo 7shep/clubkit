@@ -15,6 +15,8 @@ export const TaskSchema = z.object({
 export type Task = z.infer<typeof TaskSchema>;
 
 export const hiddenTestPath = (id: string) => join(evalsDir, "hidden", `${id}.eval.ts`);
+/** Helpers shared by hidden tests, copied next to them as `eval-hidden/support/`. */
+export const hiddenSupportDir = join(evalsDir, "hidden", "support");
 export const referencePatchPath = (id: string) => join(evalsDir, "reference", `${id}.patch`);
 
 /** Load every task, or only `ids` (in the order given). Throws on an invalid file or unknown id. */

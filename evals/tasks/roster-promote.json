@@ -1,0 +1,6 @@
+{
+  "id": "roster-promote",
+  "prompt": "We want a team page on our site, so the roster module needs to actually work. Make it a working module that exports `publicProfiles(members)`, which returns the members for the team page sorted by full name with their emails removed. Add Supabase storage for members where anyone can read the team page but nobody without the service role can read emails. Follow the repo's module conventions so it validates and verifies.",
+  "modules": ["roster"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify roster", "pnpm typecheck", "pnpm validate"]
+}

@@ -1,0 +1,6 @@
+{
+  "id": "applications-reopen-position",
+  "prompt": "We closed Developer applications last month, but we need more developers, so we're reopening it. Treat it as a second round: everyone from round 1 keeps their decision, and people rejected in round 1 are allowed to apply again in round 2. Add an optional `round` to applications (missing means round 1), `nextRound(applications, position)` that returns the round number to use when reopening, and an optional `round` filter as the third argument of `pipelineSummary`. Update the database so the same email can apply once per position per round.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck", "pnpm validate"]
+}

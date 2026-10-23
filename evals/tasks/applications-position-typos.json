@@ -1,0 +1,6 @@
+{
+  "id": "applications-position-typos",
+  "prompt": "hey so when i check how many people applied for developer the numbers are way too low?? i know way more people applied. i think some people typed it different on the form like 'developer' or 'Developer ' with a space. can you make the counts right",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck"]
+}

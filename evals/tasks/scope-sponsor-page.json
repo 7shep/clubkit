@@ -1,0 +1,6 @@
+{
+  "id": "scope-sponsor-page",
+  "prompt": "can you write up the sponsors page thing so i can hand it to someone on the dev team? put it in scopes/sponsor-page.md. basically sponsors should show on the site grouped by tier with gold first, and companies have logos. make it so they actually know what to do. don't build it",
+  "modules": ["sponsors"],
+  "checks": ["pnpm vitest run eval-hidden"]
+}

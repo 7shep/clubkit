@@ -1,0 +1,6 @@
+{
+  "id": "events-recurring-weekly",
+  "prompt": "Our workshop runs every Thursday at 18:30 from Oct 1 until Dec 4. Right now we have to create each week's event by hand. Add `weeklyOccurrences(event, until)` to the events module: it returns one event per week starting on the event's date and going up to and including `until` (a YYYY-MM-DD date), each a copy of the original with its own date.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck"]
+}

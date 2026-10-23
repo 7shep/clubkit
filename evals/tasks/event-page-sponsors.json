@@ -1,0 +1,6 @@
+{
+  "id": "event-page-sponsors",
+  "prompt": "The hackathon page should show the sponsors for that event, not every sponsor we have. Let an event list its sponsors (an optional `sponsorIds` on events), store that in the database, and add `eventSponsors(event, sponsors)` to the sponsors module that returns that event's sponsors in the order the event lists them, skipping ids that don't match a sponsor. The sponsors module isn't built yet, so it needs to become a working module too.",
+  "modules": ["events", "sponsors"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm verify sponsors", "pnpm typecheck", "pnpm validate"]
+}

@@ -1,0 +1,63 @@
+diff --git a/scopes/sponsor-page.md b/scopes/sponsor-page.md
+new file mode 100644
+index 0000000..c5711b8
+--- /dev/null
++++ b/scopes/sponsor-page.md
+@@ -0,0 +1,57 @@
++# Scope: sponsors page
++
++**For:** dev team · **Module:** `modules/sponsors`
++
++## Goal
++
++Show our sponsors on the club site, grouped by tier with gold first, each with
++the company's logo, so sponsors get the visibility we promise in the
++sponsorship package and the site stops needing hand edits every term.
++
++## Background
++
++- `modules/sponsors` is **planned**: it has a `module.json` and `MODULE.md` but
++  no code, no table, and no `verify` command. It has to become a working module
++  before the page can use it. `modules/events` is a good example to copy.
++- The `Sponsor` shape already exists as `SponsorSchema` in
++  `packages/schemas/src/club.ts`: `id`, `name`, optional `tier`, `websiteUrl`,
++  and `logoPath`. Use it; do not define a second one.
++- There is no site shell yet (`modules/site-core` is also planned), so this
++  work delivers the data and logic, not the page markup.
++
++## What to build
++
++1. Promote `modules/sponsors`: add `package.json` (`@clubkit/sponsors`),
++   `src/index.ts`, `src/sponsors.test.ts`, set `status` to `experimental`, and
++   set `verify` to `pnpm vitest run modules/sponsors`.
++2. `sponsorsByTier(sponsors, tierOrder)`: groups in `tierOrder` (e.g.
++   `["gold", "silver", "bronze"]`), sorted by name, empty tiers dropped, unknown
++   or missing tiers last under "other".
++3. `migrations/0001_sponsors.sql`: a `public.sponsors` table with RLS, a
++   public read policy for `anon`, and writes revoked (service role only).
++4. Logos: store a path in `logo_path`, pointing at a public storage bucket.
++5. Update `MODULE.md` and `module.json` exports, then run `pnpm catalog`.
++
++## Out of scope
++
++- The page layout and styling (waits on `site-core`).
++- An admin UI for editing sponsors; execs edit rows in Supabase for now.
++- Sponsorship package pricing.
++
++## Acceptance criteria
++
++- [ ] Sponsors come back grouped by tier, gold first, sorted by name within a tier.
++- [ ] Sponsors without a known tier appear last, not dropped.
++- [ ] Anyone can read sponsors with the anon key; nobody without the service role can write.
++- [ ] Every sponsor shown can have a logo.
++- [ ] `pnpm verify sponsors`, `pnpm validate`, and `pnpm check` pass.
++
++## How to verify
++
++`pnpm verify sponsors` while working, `pnpm catalog` after editing the manifest,
++and `pnpm check` before review.
++
++## Open questions
++
++- Which tiers do we sell this year besides gold? Assumed: gold, silver, bronze.
++- Where do logo files come from, and what size? Assumed: PNG or SVG uploaded by an exec.

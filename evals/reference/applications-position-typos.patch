@@ -1,0 +1,41 @@
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..2e91bd1 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -46,4 +46,9 @@ describe("applications", () => {
+     expect(pipelineSummary(apps)).toMatchObject({ submitted: 1, reviewing: 1, accepted: 1, rejected: 0 });
+     expect(pipelineSummary(apps, "Developer")).toMatchObject({ submitted: 1, reviewing: 1, accepted: 0 });
+   });
++
++  it("matches positions typed differently on the form", () => {
++    const apps: Application[] = [base, { ...base, position: " developer " }, { ...base, position: "DEVELOPER" }];
++    expect(pipelineSummary(apps, "Developer").submitted).toBe(3);
++  });
+ });
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..107fd00 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -37,11 +37,20 @@ export function transition(application: Application, to: ApplicationStatus): App
+   return { ...application, status: to };
+ }
+ 
+-/** Count applications per status, optionally for one position. Every status appears, even at zero. */
++// Positions come from free-text form fields, so "developer " and "Developer" are the same position.
++const samePosition = (a: string, b: string) => {
++  const normalize = (p: string) => p.trim().replace(/\s+/g, " ").toLowerCase();
++  return normalize(a) === normalize(b);
++};
++
++/**
++ * Count applications per status, optionally for one position (matched ignoring
++ * case and extra spaces). Every status appears, even at zero.
++ */
+ export function pipelineSummary(applications: Application[], position?: string): Record<ApplicationStatus, number> {
+   const summary = Object.fromEntries(Object.keys(transitions).map((s) => [s, 0])) as Record<ApplicationStatus, number>;
+   for (const application of applications) {
+-    if (position === undefined || application.position === position) summary[application.status]++;
++    if (position === undefined || samePosition(application.position, position)) summary[application.status]++;
+   }
+   return summary;
+ }

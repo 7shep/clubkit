@@ -1,0 +1,6 @@
+{
+  "id": "scope-decision-emails",
+  "prompt": "After recruitment closes, applicants should get an email with our decision: one for people we accepted, one for people we rejected. People should never get the same email twice, even if we re-run it. Our VP Tech is going to build this, so I need you to write the scope for them at `scopes/decision-emails.md`. It should make the task clear enough that they don't need to come back to me. Don't build it yourself.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden"]
+}

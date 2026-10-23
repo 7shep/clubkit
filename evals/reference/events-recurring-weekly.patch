@@ -1,0 +1,101 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..9bde975 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -27,7 +27,8 @@
+         "Add, list, or publish club events",
+         "Show upcoming events on a club site",
+         "Check whether an event has RSVP capacity left",
+-        "Give members a calendar file for an event"
++        "Give members a calendar file for an event",
++        "Schedule a weekly recurring event"
+       ],
+       "requires": [],
+       "schemas": [
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..dad5d66 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -7,6 +7,7 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ - Adding or publishing an event (validate with `parseEvent` first).
+ - Showing "what's next" on a club site (`upcomingEvents(events, today)`).
+ - Checking whether an event is full (`rsvpSpotsLeft(event, rsvpCount)`).
++- Scheduling a weekly series (`weeklyOccurrences(event, until)`), one event per week.
+ - Giving members an "Add to calendar" file (`eventToIcs(event, timezone)`).
+ 
+ ## Contract
+@@ -27,4 +28,4 @@ access. Only the service role can write, so publishing must happen server-side.
+ 
+ ## Not yet included
+ 
+-RSVP storage, reminders, and recurring events.
++RSVP storage, reminders, and recurrence other than weekly.
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..b949fda 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -7,11 +7,12 @@
+     "Add, list, or publish club events",
+     "Show upcoming events on a club site",
+     "Check whether an event has RSVP capacity left",
+-    "Give members a calendar file for an event"
++    "Give members a calendar file for an event",
++    "Schedule a weekly recurring event"
+   ],
+   "provides": {
+     "schemas": ["Event"],
+-    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
++    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "weeklyOccurrences", "eventToIcs"],
+     "migrations": ["migrations/0001_events.sql"]
+   },
+   "requires": [],
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..11e3a6c 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Event } from "@clubkit/schemas";
+-import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
++import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents, weeklyOccurrences } from "./index";
+ 
+ const base: Event = {
+   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+@@ -32,6 +32,12 @@ describe("events", () => {
+     expect(rsvpSpotsLeft({ ...base, rsvpCap: 100 }, 120)).toBe(0);
+   });
+ 
++  it("expands weekly events through the last date", () => {
++    const dates = weeklyOccurrences({ ...base, date: "2026-10-01" }, "2026-10-22").map((e) => e.date);
++    expect(dates).toEqual(["2026-10-01", "2026-10-08", "2026-10-15", "2026-10-22"]);
++    expect(weeklyOccurrences(base, "2026-01-01")).toEqual([]);
++  });
++
+   it("exports timed, overnight, and all-day events to iCalendar", () => {
+     const timed = eventToIcs({ ...base, startTime: "19:00", durationMinutes: 90, location: "Goodwin Hall, Room 247" });
+     expect(timed).toContain("DTSTART;TZID=America/Toronto:20261105T190000");
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..6e4de02 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -18,6 +18,20 @@ export function rsvpSpotsLeft(event: Event, rsvpCount: number): number | null {
+   return Math.max(0, event.rsvpCap - rsvpCount);
+ }
+ 
++/**
++ * Expand a weekly event into one event per week, from `event.date` through
++ * `until` (YYYY-MM-DD, inclusive). Each occurrence keeps every other field.
++ */
++export function weeklyOccurrences(event: Event, until: string): Event[] {
++  const occurrences: Event[] = [];
++  const date = new Date(`${event.date}T00:00:00Z`);
++  for (let day = event.date; day <= until; day = date.toISOString().slice(0, 10)) {
++    occurrences.push({ ...event, date: day });
++    date.setUTCDate(date.getUTCDate() + 7);
++  }
++  return occurrences;
++}
++
+ const escapeIcs = (value: string) =>
+   value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+ 

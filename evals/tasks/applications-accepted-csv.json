@@ -1,0 +1,6 @@
+{
+  "id": "applications-accepted-csv",
+  "prompt": "Recruitment's done and our onboarding lead needs a spreadsheet of who got in. Add `acceptedApplicantsCsv(applications, position?)` to the applications module. It returns CSV text with a `name,email,position` header and one row per accepted applicant, optionally only for one position. Names can have commas or quotes in them, so it has to open correctly in Excel. Don't include their answers or any demographic or other personal fields beyond those three columns.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck"]
+}

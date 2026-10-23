@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { hiddenTestPath, repoRoot, type Task } from "./tasks";
+import { hiddenSupportDir, hiddenTestPath, repoRoot, type Task } from "./tasks";
 
 export type Variant = "clubkit" | "baseline";
 
@@ -46,7 +46,7 @@ export function createWorkspace(dir: string, variant: Variant): Workspace {
   return { dir, baseCommit, variant };
 }
 
-/** Restore guidance files the checks depend on (manifest docs), then add the task's hidden tests. */
+/** Restore guidance files the checks depend on (manifest docs), then add the task's hidden tests and their shared helpers. */
 export function prepareForChecks(workspace: Workspace, task: Task): void {
   if (workspace.variant === "baseline") {
     const guidance = git(repoRoot, "ls-tree", "-r", "--name-only", workspace.baseCommit).split("\n").filter(isGuidance);
@@ -56,6 +56,7 @@ export function prepareForChecks(workspace: Workspace, task: Task): void {
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target);
   copyFileSync(hiddenTestPath(task.id), join(target, `${task.id}.test.ts`));
+  if (existsSync(hiddenSupportDir)) cpSync(hiddenSupportDir, join(target, "support"), { recursive: true });
 }
 
 export function removeWorkspace(workspace: Workspace): void {

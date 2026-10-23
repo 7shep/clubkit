@@ -1,0 +1,6 @@
+{
+  "id": "events-rsvp-storage",
+  "prompt": "Members should be able to RSVP to our events, and once an event is full nobody else should get in. Add RSVP storage to the events module: a shared `Rsvp` shape with `eventId`, `name`, and `email`, a database table for RSVPs, and `addRsvp(event, existing, rsvp)` that returns the updated list of RSVPs. It should refuse a sign-up when the event's cap is reached or when that email (ignoring case) has already RSVP'd. RSVPs include people's emails, so keep them private.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck", "pnpm validate"]
+}

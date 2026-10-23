@@ -1,0 +1,89 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..253758e 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -10,7 +10,8 @@
+         "Open recruitment or hiring for a club",
+         "Validate an application submitted through a form",
+         "Move an applicant through review, interview, and decision",
+-        "Summarize where applicants are in the pipeline"
++        "Summarize where applicants are in the pipeline",
++        "Export accepted applicants for onboarding"
+       ],
+       "requires": [],
+       "schemas": [
+diff --git a/modules/applications/MODULE.md b/modules/applications/MODULE.md
+index c1a51b5..4b9610b 100644
+--- a/modules/applications/MODULE.md
++++ b/modules/applications/MODULE.md
+@@ -9,6 +9,8 @@ and private storage.
+ - Moving an applicant forward: `transition(application, "interview")`.
+ - Asking what moves are legal: `allowedTransitions(status)`.
+ - Reporting progress: `pipelineSummary(applications, position?)`.
++- Handing new members to onboarding: `acceptedApplicantsCsv(applications, position?)`
++  gives `name,email,position` for accepted applicants and nothing else.
+ 
+ ## The pipeline
+ 
+diff --git a/modules/applications/module.json b/modules/applications/module.json
+index fd0866b..6cda340 100644
+--- a/modules/applications/module.json
++++ b/modules/applications/module.json
+@@ -7,11 +7,12 @@
+     "Open recruitment or hiring for a club",
+     "Validate an application submitted through a form",
+     "Move an applicant through review, interview, and decision",
+-    "Summarize where applicants are in the pipeline"
++    "Summarize where applicants are in the pipeline",
++    "Export accepted applicants for onboarding"
+   ],
+   "provides": {
+     "schemas": ["Application"],
+-    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
++    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary", "acceptedApplicantsCsv"],
+     "migrations": ["migrations/0001_applications.sql"]
+   },
+   "requires": [],
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..087a429 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Application } from "@clubkit/schemas";
+-import { allowedTransitions, parseApplication, pipelineSummary, transition } from "./index";
++import { acceptedApplicantsCsv, allowedTransitions, parseApplication, pipelineSummary, transition } from "./index";
+ 
+ const base: Application = {
+   id: "0b6f2b5e-3a3c-4d8e-9f0a-1c2d3e4f5a6b",
+@@ -46,4 +46,9 @@ describe("applications", () => {
+     expect(pipelineSummary(apps)).toMatchObject({ submitted: 1, reviewing: 1, accepted: 1, rejected: 0 });
+     expect(pipelineSummary(apps, "Developer")).toMatchObject({ submitted: 1, reviewing: 1, accepted: 0 });
+   });
++
++  it("exports accepted applicants as CSV with contact details only", () => {
++    const csv = acceptedApplicantsCsv([base, { ...base, status: "accepted", fullName: "Rivera, Sam" }]);
++    expect(csv).toBe('name,email,position\r\n"Rivera, Sam",sam@example.com,Developer\r\n');
++  });
+ });
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..d33ccfb 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -45,3 +45,16 @@ export function pipelineSummary(applications: Application[], position?: string):
+   }
+   return summary;
+ }
++
++const csvField = (value: string) => (/[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
++
++/**
++ * Accepted applicants as CSV (`name,email,position`), optionally for one position.
++ * Only contact details leave the module: answers, program, and graduation year are never exported.
++ */
++export function acceptedApplicantsCsv(applications: Application[], position?: string): string {
++  const rows = applications
++    .filter((a) => a.status === "accepted" && (position === undefined || a.position === position))
++    .map((a) => [a.fullName, a.email, a.position].map(csvField).join(","));
++  return ["name,email,position", ...rows].join("\r\n") + "\r\n";
++}

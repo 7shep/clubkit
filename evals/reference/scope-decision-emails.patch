@@ -1,0 +1,66 @@
+diff --git a/scopes/decision-emails.md b/scopes/decision-emails.md
+new file mode 100644
+index 0000000..ab79d20
+--- /dev/null
++++ b/scopes/decision-emails.md
+@@ -0,0 +1,60 @@
++# Scope: application decision emails
++
++**For:** VP Tech · **Module:** `modules/applications`
++
++## Goal
++
++When recruitment closes, every applicant we decided on should get exactly one
++email with our decision: an acceptance email if they were `accepted`, a
++rejection email if they were `rejected`. Today execs send these by hand, which
++is slow and has led to people getting the wrong email or none at all.
++
++## Background
++
++- Read `modules/applications/MODULE.md`, then `modules/applications/src/index.ts`.
++  The `Application` shape is in `packages/schemas/src/club.ts`.
++- Status changes go through `transition(application, to)`, which enforces the
++  pipeline. `accepted`, `rejected`, and `withdrawn` are final.
++- Applications hold personal data. The table has RLS with no policies, so only
++  the service role can read it. Everything here runs server-side.
++
++## What to build
++
++1. **Who gets what.** A pure function, e.g. `decisionEmailsDue(applications, sent)`,
++   that returns `{ application, kind: "accepted" | "rejected" }` for each final
++   decision that has not been emailed yet. Applicants still `submitted`,
++   `reviewing`, or `interview` get nothing, and `withdrawn` applicants get no
++   decision email.
++2. **Remember what was sent.** A new migration
++   `modules/applications/migrations/0002_decision_emails.sql` with a table keyed
++   by application id and kind (unique), RLS on, no policies. Insert the row in
++   the same step as sending so a re-run never sends twice.
++3. **Sending.** A server-side script the exec runs once recruitment closes.
++   It reads applications with the service role, sends via an injected
++   `sendEmail`, and prints counts (never names or emails) when done.
++4. **Docs.** Add exports to `module.json`, update `MODULE.md` and
++   `skills/run-recruitment.md` step 6, then run `pnpm catalog`.
++
++## Out of scope
++
++- Writing the email copy (the President provides it) and HTML templates.
++- Interview invitations or any email before a final decision.
++- Changing statuses: this only reads them.
++
++## Acceptance criteria
++
++- [ ] Each `accepted` applicant gets the acceptance email once; each `rejected` applicant gets the rejection email once.
++- [ ] Re-running the script after a partial failure sends only what was not sent.
++- [ ] `withdrawn` and undecided applicants get no email.
++- [ ] No applicant data appears in logs, public pages, or anything readable with the anon key.
++- [ ] `pnpm verify applications` and `pnpm check` pass.
++
++## How to verify
++
++Run `pnpm verify applications` after each change, and `pnpm check` before review.
++Test with fake applicants only; never commit real applicant data.
++
++## Open questions
++
++- Which email provider and sending address? Assumed: injected, so tests use a fake.
++- Should accepted applicants for different positions get different emails? Assumed: one template per kind, with the position filled in.

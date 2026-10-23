@@ -1,0 +1,252 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..e3aada0 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -65,16 +65,18 @@
+     },
+     {
+       "name": "sponsors",
+-      "status": "planned",
+-      "version": "0.0.0",
++      "status": "experimental",
++      "version": "0.1.0",
+       "summary": "Sponsor listings with tiers and logos for club websites and sponsorship packages.",
+       "useWhen": [
+         "Show sponsors on a club site",
+-        "Track sponsor tiers"
++        "Track sponsor tiers",
++        "List the sponsors of one event"
+       ],
+       "requires": [],
+       "schemas": [
+-        "Sponsor"
++        "Sponsor",
++        "Event"
+       ],
+       "path": "modules/sponsors"
+     }
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..20a2c35 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -13,10 +13,13 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ 
+ Shape: `Event` from `@clubkit/schemas`. Dates are `YYYY-MM-DD`; start times are
+ 24-hour `HH:MM` in the club's configured `timezone`. An event with no
+-`startTime` is all-day. An event with no `rsvpCap` is uncapped.
++`startTime` is all-day. An event with no `rsvpCap` is uncapped. `sponsorIds`
++lists the event's sponsors in display order; resolve them with `eventSponsors`
++from the sponsors module.
+ 
+ Storage: `migrations/0001_events.sql` creates `public.events` with public read
+ access. Only the service role can write, so publishing must happen server-side.
++`migrations/0002_event_sponsors.sql` adds `sponsor_ids`.
+ 
+ ## Rules for agents
+ 
+diff --git a/modules/events/migrations/0002_event_sponsors.sql b/modules/events/migrations/0002_event_sponsors.sql
+new file mode 100644
+index 0000000..6aec909
+--- /dev/null
++++ b/modules/events/migrations/0002_event_sponsors.sql
+@@ -0,0 +1,3 @@
++-- Sponsors shown on an event's page, in display order. Ids refer to public.sponsors.
++alter table public.events
++  add column if not exists sponsor_ids uuid[] not null default '{}';
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..4650594 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -12,7 +12,7 @@
+   "provides": {
+     "schemas": ["Event"],
+     "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
+-    "migrations": ["migrations/0001_events.sql"]
++    "migrations": ["migrations/0001_events.sql", "migrations/0002_event_sponsors.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/sponsors/MODULE.md b/modules/sponsors/MODULE.md
+index 9abf7d5..43e7f13 100644
+--- a/modules/sponsors/MODULE.md
++++ b/modules/sponsors/MODULE.md
+@@ -1,14 +1,20 @@
+ # sponsors
+ 
+-**Status: planned.** Nothing here is implemented yet; do not import it.
+-
+ Sponsor listings with tiers and logos for club websites and sponsorship packages.
+ 
+-## Extraction source
++## Use it for
++
++- Showing sponsors grouped by tier: `sponsorsByTier(sponsors, ["platinum", "gold", "silver"])`.
++- Showing an event page's sponsors: `eventSponsors(event, sponsors)`, in the order of `event.sponsorIds`.
++
++## Contract
++
++Shape: `Sponsor` from `@clubkit/schemas`. Tiers are free text; the caller's
++`tierOrder` decides display order, and anything else is grouped under "other".
+ 
+-QWeb's `sponsors` table (`20260905000001_create_sponsors.sql`).
++Storage: `migrations/0001_sponsors.sql` creates `public.sponsors` with public read
++access. Only the service role can write.
+ 
+-## Before building
++## Rules for agents
+ 
+-Follow `skills/add-a-module.md`, then change `status` to `experimental` and
+-add a `verify` command.
++- After changing this module, run `pnpm verify sponsors`.
+diff --git a/modules/sponsors/migrations/0001_sponsors.sql b/modules/sponsors/migrations/0001_sponsors.sql
+new file mode 100644
+index 0000000..29ebd88
+--- /dev/null
++++ b/modules/sponsors/migrations/0001_sponsors.sql
+@@ -0,0 +1,18 @@
++-- Generalized from QWeb's sponsors table. Public read, writes via service role only.
++create table if not exists public.sponsors (
++  id uuid primary key default gen_random_uuid(),
++  name text not null,
++  tier text,
++  website_url text,
++  logo_path text,
++  created_at timestamptz not null default now()
++);
++
++alter table public.sponsors enable row level security;
++
++create policy "Sponsors are publicly readable"
++  on public.sponsors for select
++  to anon, authenticated
++  using (true);
++
++revoke insert, update, delete on public.sponsors from anon, authenticated;
+diff --git a/modules/sponsors/module.json b/modules/sponsors/module.json
+index 8235dbf..95dba88 100644
+--- a/modules/sponsors/module.json
++++ b/modules/sponsors/module.json
+@@ -1,10 +1,15 @@
+ {
+   "name": "sponsors",
+-  "version": "0.0.0",
+-  "status": "planned",
++  "version": "0.1.0",
++  "status": "experimental",
+   "summary": "Sponsor listings with tiers and logos for club websites and sponsorship packages.",
+-  "useWhen": ["Show sponsors on a club site", "Track sponsor tiers"],
+-  "provides": { "schemas": ["Sponsor"], "exports": [], "migrations": [] },
++  "useWhen": ["Show sponsors on a club site", "Track sponsor tiers", "List the sponsors of one event"],
++  "provides": {
++    "schemas": ["Sponsor", "Event"],
++    "exports": ["sponsorsByTier", "eventSponsors"],
++    "migrations": ["migrations/0001_sponsors.sql"]
++  },
+   "requires": [],
+-  "config": {}
++  "config": {},
++  "verify": "pnpm vitest run modules/sponsors"
+ }
+diff --git a/modules/sponsors/package.json b/modules/sponsors/package.json
+new file mode 100644
+index 0000000..ac6036f
+--- /dev/null
++++ b/modules/sponsors/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "@clubkit/sponsors",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "main": "src/index.ts",
++  "dependencies": {
++    "@clubkit/schemas": "workspace:*"
++  }
++}
+diff --git a/modules/sponsors/src/index.ts b/modules/sponsors/src/index.ts
+new file mode 100644
+index 0000000..a7ac2ae
+--- /dev/null
++++ b/modules/sponsors/src/index.ts
+@@ -0,0 +1,24 @@
++import type { Event, Sponsor } from "@clubkit/schemas";
++
++export interface SponsorTier {
++  tier: string;
++  sponsors: Sponsor[];
++}
++
++/** Group sponsors in `tierOrder`, sorted by name; unknown or missing tiers go last under "other". */
++export function sponsorsByTier(sponsors: Sponsor[], tierOrder: string[]): SponsorTier[] {
++  const groups = new Map<string, Sponsor[]>([...tierOrder, "other"].map((tier) => [tier, []]));
++  for (const sponsor of sponsors) {
++    const tier = sponsor.tier !== undefined && tierOrder.includes(sponsor.tier) ? sponsor.tier : "other";
++    groups.get(tier)!.push(sponsor);
++  }
++  return [...groups]
++    .filter(([, members]) => members.length > 0)
++    .map(([tier, members]) => ({ tier, sponsors: members.sort((a, b) => a.name.localeCompare(b.name)) }));
++}
++
++/** The sponsors an event lists, in the event's order. Ids with no matching sponsor are skipped. */
++export function eventSponsors(event: Event, sponsors: Sponsor[]): Sponsor[] {
++  const byId = new Map(sponsors.map((s) => [s.id, s]));
++  return [...new Set(event.sponsorIds ?? [])].flatMap((id) => byId.get(id) ?? []);
++}
+diff --git a/modules/sponsors/src/sponsors.test.ts b/modules/sponsors/src/sponsors.test.ts
+new file mode 100644
+index 0000000..ea3a4e1
+--- /dev/null
++++ b/modules/sponsors/src/sponsors.test.ts
+@@ -0,0 +1,22 @@
++import { describe, expect, it } from "vitest";
++import { eventSponsors, sponsorsByTier } from "./index";
++
++const sponsor = (name: string, tier?: string) => ({ id: "3f2504e0-4f89-11d3-9a0c-0305e82c3301", name, tier });
++
++describe("sponsors", () => {
++  it("groups by tier order with leftovers last", () => {
++    const groups = sponsorsByTier([sponsor("B", "gold"), sponsor("A", "gold"), sponsor("C")], ["gold", "silver"]);
++    expect(groups.map((g) => [g.tier, g.sponsors.map((s) => s.name)])).toEqual([
++      ["gold", ["A", "B"]],
++      ["other", ["C"]],
++    ]);
++  });
++
++  it("lists an event's sponsors in the event's order", () => {
++    const acme = { id: "5d1c9a7e-2b4f-4c6a-8e0d-3f5b7a9c1e2d", name: "Acme" };
++    const zeta = { id: "9b2f8d1e-1c4a-4f6e-8a3b-2d5c7e9f1a0b", name: "Zeta" };
++    const event = { id: acme.id, name: "Hackathon", description: "", date: "2026-11-13", sponsorIds: [zeta.id, acme.id] };
++    expect(eventSponsors(event, [acme, zeta]).map((s) => s.name)).toEqual(["Zeta", "Acme"]);
++    expect(eventSponsors({ ...event, sponsorIds: undefined }, [acme])).toEqual([]);
++  });
++});
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..42d85e3 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -27,6 +27,7 @@ export const EventSchema = z.object({
+   durationMinutes: z.number().int().positive().optional(),
+   location: z.string().optional(),
+   rsvpCap: z.number().int().positive().optional(),
++  sponsorIds: z.array(z.string().uuid()).optional().describe("Sponsors to show for this event, in display order"),
+ });
+ export type Event = z.infer<typeof EventSchema>;
+ 
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a232741..a7e9769 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -33,6 +33,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/schemas
+ 
++  modules/sponsors:
++    dependencies:
++      '@clubkit/schemas':
++        specifier: workspace:*
++        version: link:../../packages/schemas
++
+   packages/catalog:
+     dependencies:
+       '@clubkit/schemas':

@@ -1,0 +1,6 @@
+{
+  "id": "events-upcoming-timezone",
+  "prompt": "Our site's server runs in UTC and only knows the current time, so in the evening our 'upcoming events' list drops events that are still happening today here. Add `upcomingEventsAt(events, now, timezone)` to the events module, where `now` is a `Date` and `timezone` is an IANA name like \"America/Toronto\". It should return the same list `upcomingEvents` would for today's date in that timezone.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify events", "pnpm typecheck"]
+}

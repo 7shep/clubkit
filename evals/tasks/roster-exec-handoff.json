@@ -1,0 +1,6 @@
+{
+  "id": "roster-exec-handoff",
+  "prompt": "Every spring our execs hand their roles to next year's team, and we lose track of who held what. Add exec handoff to the roster module (it isn't built yet, so make it a working module first): `handOffRole(members, { role, fromMemberId, toMemberId, on })`, where `on` is a YYYY-MM-DD date. It returns `{ members, handoff }`: the incoming member gets the role, the outgoing member's role becomes \"Alumni\", and `handoff` is the record of what changed and when. Refuse handoffs where the outgoing member doesn't hold that role or either member doesn't exist. Store handoffs in the database with their date.",
+  "modules": ["roster"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify roster", "pnpm typecheck", "pnpm validate"]
+}

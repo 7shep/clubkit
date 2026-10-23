@@ -1,0 +1,6 @@
+{
+  "id": "scope-rsvp-reminders",
+  "prompt": "We want everyone who RSVP'd to an event to get a reminder email the day before. I'm giving this to a new developer on our tech team who hasn't worked in this repo yet, not to you. Write the scope for them in `scopes/rsvp-reminders.md`: they should be able to read it and start without coming back to ask me what I meant or where things are. Don't build it yourself.",
+  "modules": ["events"],
+  "checks": ["pnpm vitest run eval-hidden"]
+}

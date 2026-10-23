@@ -1,0 +1,75 @@
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..4be2e79 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -5,7 +5,8 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ ## Use it for
+ 
+ - Adding or publishing an event (validate with `parseEvent` first).
+-- Showing "what's next" on a club site (`upcomingEvents(events, today)`).
++- Showing "what's next" on a club site (`upcomingEvents(events, today)`), or
++  `upcomingEventsAt(events, now, timezone)` when you only have the current instant.
+ - Checking whether an event is full (`rsvpSpotsLeft(event, rsvpCount)`).
+ - Giving members an "Add to calendar" file (`eventToIcs(event, timezone)`).
+ 
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..837e179 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -11,7 +11,7 @@
+   ],
+   "provides": {
+     "schemas": ["Event"],
+-    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
++    "exports": ["parseEvent", "upcomingEvents", "upcomingEventsAt", "dateInTimezone", "rsvpSpotsLeft", "eventToIcs"],
+     "migrations": ["migrations/0001_events.sql"]
+   },
+   "requires": [],
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..ddc421e 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Event } from "@clubkit/schemas";
+-import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
++import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents, upcomingEventsAt } from "./index";
+ 
+ const base: Event = {
+   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+@@ -26,6 +26,13 @@ describe("events", () => {
+     expect(upcomingEvents(events, "2026-10-22").map((e) => e.name)).toEqual(["today-early", "today-late", "later"]);
+   });
+ 
++  it("works out today in the club's timezone, not UTC", () => {
++    // 02:00 UTC on Nov 6 is still Nov 5 in Toronto.
++    const events: Event[] = [{ ...base, name: "tonight", date: "2026-11-05" }];
++    expect(upcomingEventsAt(events, new Date("2026-11-06T02:00:00Z"), "America/Toronto").map((e) => e.name)).toEqual(["tonight"]);
++    expect(upcomingEventsAt(events, new Date("2026-11-06T02:00:00Z"), "UTC")).toEqual([]);
++  });
++
+   it("reports RSVP capacity without going negative", () => {
+     expect(rsvpSpotsLeft(base, 10)).toBeNull();
+     expect(rsvpSpotsLeft({ ...base, rsvpCap: 100 }, 40)).toBe(60);
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..b989624 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -12,6 +12,17 @@ export function upcomingEvents(events: Event[], today: string): Event[] {
+     .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+ }
+ 
++/** The calendar date (YYYY-MM-DD) in `timezone` at the instant `now`. */
++export function dateInTimezone(now: Date, timezone: string): string {
++  // en-CA formats dates as YYYY-MM-DD.
++  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
++}
++
++/** `upcomingEvents` for callers that know only the current instant and the club's timezone. */
++export function upcomingEventsAt(events: Event[], now: Date, timezone: string): Event[] {
++  return upcomingEvents(events, dateInTimezone(now, timezone));
++}
++
+ /** Remaining RSVP spots, or `null` when the event has no cap. Never negative. */
+ export function rsvpSpotsLeft(event: Event, rsvpCount: number): number | null {
+   if (event.rsvpCap === undefined) return null;

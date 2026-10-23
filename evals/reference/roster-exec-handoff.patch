@@ -1,0 +1,278 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..80bbaf7 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -37,16 +37,18 @@
+     },
+     {
+       "name": "roster",
+-      "status": "planned",
+-      "version": "0.0.0",
++      "status": "experimental",
++      "version": "0.1.0",
+       "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+       "useWhen": [
+         "Show a team or leadership page",
+-        "Hand off a role to next year's exec"
++        "Hand off a role to next year's exec",
++        "Store the club's member list"
+       ],
+       "requires": [],
+       "schemas": [
+-        "Member"
++        "Member",
++        "RoleHandoff"
+       ],
+       "path": "modules/roster"
+     },
+diff --git a/modules/roster/MODULE.md b/modules/roster/MODULE.md
+index e7f0359..c41ff9d 100644
+--- a/modules/roster/MODULE.md
++++ b/modules/roster/MODULE.md
+@@ -1,14 +1,30 @@
+ # roster
+ 
+-**Status: planned.** Nothing here is implemented yet; do not import it.
++Members, roles, and exec handoff: who is in the club, what they do, and what the
++next exec needs to know.
+ 
+-Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.
++## Use it for
+ 
+-## Extraction source
++- Rendering a team page: `publicProfiles(members)` returns members sorted by name
++  with `email` removed.
++- Changing execs: `handOffRole(members, { role, fromMemberId, toMemberId, on })`
++  moves the role, makes the outgoing member `"Alumni"`, and returns the handoff to store.
+ 
+-QWeb's `team_members` table (role and person details migrations).
++## Contract
+ 
+-## Before building
++Shape: `Member` from `@clubkit/schemas`.
+ 
+-Follow `skills/add-a-module.md`, then change `status` to `experimental` and
+-add a `verify` command.
++Storage: `migrations/0001_members.sql` creates `public.members`. Anyone can read
++the team page columns, but `email` is not granted to `anon` or `authenticated`,
++so only the service role can see emails. `migrations/0002_role_handoffs.sql`
++records each handoff with its date, readable by the service role only.
++
++## Rules for agents
++
++- Emails are personal data. Never send them to the browser; pass members through
++  `publicProfiles` before rendering, and never `select *` with the anon key.
++- After changing this module, run `pnpm verify roster`.
++
++## Not yet included
++
++Handoff notes (what the next exec needs to know) and term history.
+diff --git a/modules/roster/migrations/0001_members.sql b/modules/roster/migrations/0001_members.sql
+new file mode 100644
+index 0000000..c689c91
+--- /dev/null
++++ b/modules/roster/migrations/0001_members.sql
+@@ -0,0 +1,25 @@
++-- Generalized from QWeb's team_members table. The team page is public; emails are not.
++create table if not exists public.members (
++  id uuid primary key default gen_random_uuid(),
++  full_name text not null,
++  pronouns text,
++  email text not null unique,
++  role text not null,
++  team text,
++  joined_on date,
++  linkedin_url text,
++  github_url text,
++  created_at timestamptz not null default now()
++);
++
++alter table public.members enable row level security;
++
++create policy "Team page is publicly readable"
++  on public.members for select
++  to anon, authenticated
++  using (true);
++
++-- Column privileges: the anon and authenticated roles can read every column except email.
++revoke all on public.members from anon, authenticated;
++grant select (id, full_name, pronouns, role, team, joined_on, linkedin_url, github_url)
++  on public.members to anon, authenticated;
+diff --git a/modules/roster/migrations/0002_role_handoffs.sql b/modules/roster/migrations/0002_role_handoffs.sql
+new file mode 100644
+index 0000000..2ffb18f
+--- /dev/null
++++ b/modules/roster/migrations/0002_role_handoffs.sql
+@@ -0,0 +1,12 @@
++-- Every exec handoff, with the date the incoming member takes over. Service role only.
++create table if not exists public.role_handoffs (
++  id uuid primary key default gen_random_uuid(),
++  role text not null,
++  from_member_id uuid not null references public.members (id),
++  to_member_id uuid not null references public.members (id),
++  handed_off_on date not null,
++  created_at timestamptz not null default now(),
++  check (from_member_id <> to_member_id)
++);
++
++alter table public.role_handoffs enable row level security;
+diff --git a/modules/roster/module.json b/modules/roster/module.json
+index b0f0981..c03c1c5 100644
+--- a/modules/roster/module.json
++++ b/modules/roster/module.json
+@@ -1,10 +1,15 @@
+ {
+   "name": "roster",
+-  "version": "0.0.0",
+-  "status": "planned",
++  "version": "0.1.0",
++  "status": "experimental",
+   "summary": "Members, roles, and exec handoff: who is in the club, what they do, and what the next exec needs to know.",
+-  "useWhen": ["Show a team or leadership page", "Hand off a role to next year's exec"],
+-  "provides": { "schemas": ["Member"], "exports": [], "migrations": [] },
++  "useWhen": ["Show a team or leadership page", "Hand off a role to next year's exec", "Store the club's member list"],
++  "provides": {
++    "schemas": ["Member", "RoleHandoff"],
++    "exports": ["publicProfiles", "handOffRole", "ALUMNI_ROLE"],
++    "migrations": ["migrations/0001_members.sql", "migrations/0002_role_handoffs.sql"]
++  },
+   "requires": [],
+-  "config": {}
++  "config": {},
++  "verify": "pnpm vitest run modules/roster"
+ }
+diff --git a/modules/roster/package.json b/modules/roster/package.json
+new file mode 100644
+index 0000000..4fb9ef7
+--- /dev/null
++++ b/modules/roster/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "@clubkit/roster",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "main": "src/index.ts",
++  "dependencies": {
++    "@clubkit/schemas": "workspace:*"
++  }
++}
+diff --git a/modules/roster/src/index.ts b/modules/roster/src/index.ts
+new file mode 100644
+index 0000000..6c9734b
+--- /dev/null
++++ b/modules/roster/src/index.ts
+@@ -0,0 +1,36 @@
++import { RoleHandoffSchema, type Member, type RoleHandoff } from "@clubkit/schemas";
++
++export type PublicProfile = Omit<Member, "email">;
++
++/** Members for a public team page, sorted by name, with emails removed. */
++export function publicProfiles(members: Member[]): PublicProfile[] {
++  return members
++    .map(({ email: _email, ...profile }) => profile)
++    .sort((a, b) => a.fullName.localeCompare(b.fullName));
++}
++
++/** The role an outgoing exec holds after handing off. */
++export const ALUMNI_ROLE = "Alumni";
++
++/**
++ * Move `role` from one member to another on a date. Returns updated copies of the
++ * members (the outgoing member becomes "Alumni") and the handoff record to store.
++ * Throws if the outgoing member does not hold the role or either member is unknown.
++ */
++export function handOffRole(members: Member[], request: RoleHandoff): { members: Member[]; handoff: RoleHandoff } {
++  const handoff = RoleHandoffSchema.parse(request);
++  const from = members.find((m) => m.id === handoff.fromMemberId);
++  const to = members.find((m) => m.id === handoff.toMemberId);
++  if (!from) throw new Error(`No member with id ${handoff.fromMemberId}`);
++  if (!to) throw new Error(`No member with id ${handoff.toMemberId}`);
++  if (from.id === to.id) throw new Error("A member cannot hand a role to themselves");
++  if (from.role !== handoff.role) {
++    throw new Error(`${from.fullName} holds "${from.role}", not "${handoff.role}"`);
++  }
++  return {
++    members: members.map((m) =>
++      m.id === from.id ? { ...m, role: ALUMNI_ROLE } : m.id === to.id ? { ...m, role: handoff.role } : m,
++    ),
++    handoff,
++  };
++}
+diff --git a/modules/roster/src/roster.test.ts b/modules/roster/src/roster.test.ts
+new file mode 100644
+index 0000000..a207cb1
+--- /dev/null
++++ b/modules/roster/src/roster.test.ts
+@@ -0,0 +1,27 @@
++import { describe, expect, it } from "vitest";
++import { handOffRole, publicProfiles } from "./index";
++
++const member = (fullName: string, id = "3f2504e0-4f89-11d3-9a0c-0305e82c3301") => ({
++  id,
++  fullName,
++  email: `${fullName.toLowerCase()}@example.com`,
++  role: "Developer",
++});
++
++describe("roster", () => {
++  it("sorts the team page by name and hides emails", () => {
++    const profiles = publicProfiles([member("Zoe"), member("Ana")]);
++    expect(profiles.map((p) => p.fullName)).toEqual(["Ana", "Zoe"]);
++    expect(profiles.every((p) => !("email" in p))).toBe(true);
++  });
++
++  it("hands a role to the next exec and records the date", () => {
++    const outgoing = { ...member("Ana"), role: "VP Events" };
++    const incoming = member("Bo", "5d1c9a7e-2b4f-4c6a-8e0d-3f5b7a9c1e2d");
++    const request = { role: "VP Events", fromMemberId: outgoing.id, toMemberId: incoming.id, on: "2027-05-01" };
++    const result = handOffRole([outgoing, incoming], request);
++    expect(result.members.map((m) => m.role)).toEqual(["Alumni", "VP Events"]);
++    expect(result.handoff).toEqual(request);
++    expect(() => handOffRole([outgoing, incoming], { ...request, role: "President" })).toThrow(/holds "VP Events"/);
++  });
++});
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..ccc75f8 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -15,6 +15,14 @@ export const MemberSchema = z.object({
+ });
+ export type Member = z.infer<typeof MemberSchema>;
+ 
++export const RoleHandoffSchema = z.object({
++  role: z.string().min(1),
++  fromMemberId: z.string().uuid(),
++  toMemberId: z.string().uuid(),
++  on: isoDate.describe("Date the incoming member takes over"),
++});
++export type RoleHandoff = z.infer<typeof RoleHandoffSchema>;
++
+ export const EventSchema = z.object({
+   id: z.string().uuid(),
+   name: z.string().min(1),
+@@ -69,6 +77,7 @@ export type Sponsor = z.infer<typeof SponsorSchema>;
+ /** Registry used by manifests: a module declares the schemas it provides by these names. */
+ export const sharedSchemas = {
+   Member: MemberSchema,
++  RoleHandoff: RoleHandoffSchema,
+   Event: EventSchema,
+   Application: ApplicationSchema,
+   Sponsor: SponsorSchema,
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index a232741..08ba506 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -33,6 +33,12 @@ importers:
+         specifier: workspace:*
+         version: link:../../packages/schemas
+ 
++  modules/roster:
++    dependencies:
++      '@clubkit/schemas':
++        specifier: workspace:*
++        version: link:../../packages/schemas
++
+   packages/catalog:
+     dependencies:
+       '@clubkit/schemas':

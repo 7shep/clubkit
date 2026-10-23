@@ -1,0 +1,171 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..4185bc5 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -27,11 +27,13 @@
+         "Add, list, or publish club events",
+         "Show upcoming events on a club site",
+         "Check whether an event has RSVP capacity left",
++        "Store RSVPs and refuse sign-ups once an event is full",
+         "Give members a calendar file for an event"
+       ],
+       "requires": [],
+       "schemas": [
+-        "Event"
++        "Event",
++        "Rsvp"
+       ],
+       "path": "modules/events"
+     },
+diff --git a/modules/events/MODULE.md b/modules/events/MODULE.md
+index 845c207..37b959e 100644
+--- a/modules/events/MODULE.md
++++ b/modules/events/MODULE.md
+@@ -7,6 +7,7 @@ Club events: storage, upcoming-event queries, RSVP capacity, and calendar export
+ - Adding or publishing an event (validate with `parseEvent` first).
+ - Showing "what's next" on a club site (`upcomingEvents(events, today)`).
+ - Checking whether an event is full (`rsvpSpotsLeft(event, rsvpCount)`).
++- Taking an RSVP (`addRsvp(event, existing, rsvp)`), which refuses full events and repeat emails.
+ - Giving members an "Add to calendar" file (`eventToIcs(event, timezone)`).
+ 
+ ## Contract
+@@ -17,6 +18,8 @@ Shape: `Event` from `@clubkit/schemas`. Dates are `YYYY-MM-DD`; start times are
+ 
+ Storage: `migrations/0001_events.sql` creates `public.events` with public read
+ access. Only the service role can write, so publishing must happen server-side.
++`migrations/0002_event_rsvps.sql` creates `public.event_rsvps`. RSVPs hold
++emails, so the table has RLS with no policies: service role only.
+ 
+ ## Rules for agents
+ 
+@@ -27,4 +30,4 @@ access. Only the service role can write, so publishing must happen server-side.
+ 
+ ## Not yet included
+ 
+-RSVP storage, reminders, and recurring events.
++Reminders and recurring events.
+diff --git a/modules/events/migrations/0002_event_rsvps.sql b/modules/events/migrations/0002_event_rsvps.sql
+new file mode 100644
+index 0000000..c74d593
+--- /dev/null
++++ b/modules/events/migrations/0002_event_rsvps.sql
+@@ -0,0 +1,11 @@
++-- RSVPs hold names and emails: RLS is on with no policies, so only the service role can read or write.
++create table if not exists public.event_rsvps (
++  id uuid primary key default gen_random_uuid(),
++  event_id uuid not null references public.events (id) on delete cascade,
++  name text not null,
++  email text not null,
++  created_at timestamptz not null default now(),
++  unique (event_id, email)
++);
++
++alter table public.event_rsvps enable row level security;
+diff --git a/modules/events/module.json b/modules/events/module.json
+index 1af6287..157843b 100644
+--- a/modules/events/module.json
++++ b/modules/events/module.json
+@@ -7,12 +7,13 @@
+     "Add, list, or publish club events",
+     "Show upcoming events on a club site",
+     "Check whether an event has RSVP capacity left",
++    "Store RSVPs and refuse sign-ups once an event is full",
+     "Give members a calendar file for an event"
+   ],
+   "provides": {
+-    "schemas": ["Event"],
+-    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "eventToIcs"],
+-    "migrations": ["migrations/0001_events.sql"]
++    "schemas": ["Event", "Rsvp"],
++    "exports": ["parseEvent", "upcomingEvents", "rsvpSpotsLeft", "addRsvp", "eventToIcs"],
++    "migrations": ["migrations/0001_events.sql", "migrations/0002_event_rsvps.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/events/src/events.test.ts b/modules/events/src/events.test.ts
+index 8a885b9..cc804bf 100644
+--- a/modules/events/src/events.test.ts
++++ b/modules/events/src/events.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Event } from "@clubkit/schemas";
+-import { eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
++import { addRsvp, eventToIcs, parseEvent, rsvpSpotsLeft, upcomingEvents } from "./index";
+ 
+ const base: Event = {
+   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+@@ -32,6 +32,14 @@ describe("events", () => {
+     expect(rsvpSpotsLeft({ ...base, rsvpCap: 100 }, 120)).toBe(0);
+   });
+ 
++  it("refuses RSVPs once full or from the same email twice", () => {
++    const event = { ...base, rsvpCap: 1 };
++    const first = addRsvp(event, [], { eventId: base.id, name: "Ana", email: "ana@example.com" });
++    expect(first).toHaveLength(1);
++    expect(() => addRsvp({ ...base, rsvpCap: 5 }, first, { eventId: base.id, name: "Ana", email: "ANA@example.com" })).toThrow(/already/);
++    expect(() => addRsvp(event, first, { eventId: base.id, name: "Bo", email: "bo@example.com" })).toThrow(/full/);
++  });
++
+   it("exports timed, overnight, and all-day events to iCalendar", () => {
+     const timed = eventToIcs({ ...base, startTime: "19:00", durationMinutes: 90, location: "Goodwin Hall, Room 247" });
+     expect(timed).toContain("DTSTART;TZID=America/Toronto:20261105T190000");
+diff --git a/modules/events/src/index.ts b/modules/events/src/index.ts
+index 3d4ba95..86eaa26 100644
+--- a/modules/events/src/index.ts
++++ b/modules/events/src/index.ts
+@@ -1,4 +1,4 @@
+-import { EventSchema, type Event } from "@clubkit/schemas";
++import { EventSchema, type Event, type Rsvp } from "@clubkit/schemas";
+ 
+ /** Validate untrusted input (form data, agent output, a database row) into an Event. Throws ZodError on bad input. */
+ export function parseEvent(input: unknown): Event {
+@@ -18,6 +18,23 @@ export function rsvpSpotsLeft(event: Event, rsvpCount: number): number | null {
+   return Math.max(0, event.rsvpCap - rsvpCount);
+ }
+ 
++/**
++ * Return `existing` plus `rsvp`, or throw if the event is full or the email has
++ * already RSVP'd. Only RSVPs for this event count toward its cap.
++ */
++export function addRsvp(event: Event, existing: Rsvp[], rsvp: Rsvp): Rsvp[] {
++  if (rsvp.eventId !== event.id) throw new Error(`RSVP is for event ${rsvp.eventId}, not ${event.id}`);
++  const forEvent = existing.filter((r) => r.eventId === event.id);
++  const email = rsvp.email.toLowerCase();
++  if (forEvent.some((r) => r.email.toLowerCase() === email)) {
++    throw new Error(`${rsvp.email} has already RSVP'd to "${event.name}"`);
++  }
++  if (rsvpSpotsLeft(event, forEvent.length) === 0) {
++    throw new Error(`"${event.name}" is full (${event.rsvpCap} spots)`);
++  }
++  return [...existing, rsvp];
++}
++
+ const escapeIcs = (value: string) =>
+   value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+ 
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..a5adfa8 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -30,6 +30,13 @@ export const EventSchema = z.object({
+ });
+ export type Event = z.infer<typeof EventSchema>;
+ 
++export const RsvpSchema = z.object({
++  eventId: z.string().uuid(),
++  name: z.string().min(1),
++  email: z.string().email(),
++});
++export type Rsvp = z.infer<typeof RsvpSchema>;
++
+ export const ApplicationStatusSchema = z.enum([
+   "submitted",
+   "reviewing",
+@@ -70,6 +77,7 @@ export type Sponsor = z.infer<typeof SponsorSchema>;
+ export const sharedSchemas = {
+   Member: MemberSchema,
+   Event: EventSchema,
++  Rsvp: RsvpSchema,
+   Application: ApplicationSchema,
+   Sponsor: SponsorSchema,
+ } as const;

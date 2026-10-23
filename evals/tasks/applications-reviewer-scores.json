@@ -1,0 +1,6 @@
+{
+  "id": "applications-reviewer-scores",
+  "prompt": "Our execs want to score applicants instead of arguing in a group chat. Add reviewer scoring to the applications module: a shared `ReviewScore` shape (`applicationId`, `reviewer`, a whole-number `score` from 1 to 5, and an optional `comment`), a database table for scores, and `averageScores(scores)` that returns, for each application id, `{ average, count }`. If a reviewer scores the same applicant twice, only their last score counts.",
+  "modules": ["applications"],
+  "checks": ["pnpm vitest run eval-hidden", "pnpm verify applications", "pnpm typecheck", "pnpm validate"]
+}

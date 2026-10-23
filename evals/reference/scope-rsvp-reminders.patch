@@ -1,0 +1,69 @@
+diff --git a/scopes/rsvp-reminders.md b/scopes/rsvp-reminders.md
+new file mode 100644
+index 0000000..4787b04
+--- /dev/null
++++ b/scopes/rsvp-reminders.md
+@@ -0,0 +1,63 @@
++# Scope: RSVP reminder emails
++
++**For:** a developer new to clubkit · **Module:** `modules/events`
++
++## Goal
++
++Members who RSVP to an event should get one reminder email the day before it
++starts, so fewer people forget and fewer spots go to waste. Today nothing is
++sent: members only see the event on the site or in the calendar file they
++downloaded.
++
++## Background
++
++- Events live in `modules/events`. Read `modules/events/MODULE.md` first, then
++  `modules/events/src/index.ts`. The `Event` shape is in `packages/schemas/src/club.ts`.
++- Event dates are `YYYY-MM-DD` and start times are `HH:MM` in the club's
++  configured timezone (`timezone` in `modules/events/module.json`, default
++  `America/Toronto`). The server clock runs in UTC.
++- **RSVP storage does not exist yet.** The module only has
++  `rsvpSpotsLeft(event, rsvpCount)`, which takes a count. There is no RSVP
++  table or `Rsvp` shape, so there is no list of people to email. That is a
++  prerequisite (see "What to build", step 1).
++
++## What to build
++
++1. **RSVP storage** (prerequisite). Add an `Rsvp` schema to
++   `packages/schemas/src/club.ts` (`eventId`, `name`, `email`) and register it in
++   `sharedSchemas`. Add `modules/events/migrations/0002_event_rsvps.sql` with a
++   table that references `public.events`. RSVPs contain emails, so enable RLS
++   with no policies: service role only, like `modules/applications`.
++2. **Who to remind.** A pure function in `modules/events/src/index.ts`, e.g.
++   `remindersDue(events, rsvps, now, timezone)`, that returns the RSVPs whose
++   event is tomorrow in the club's timezone. Keep it free of I/O so it is easy to test.
++3. **Sending.** A scheduled server-side job (once a day) that calls it, sends
++   each email, and records that the reminder was sent so a re-run does not
++   send it again (for example a `reminded_at` column on the RSVP row).
++4. **Docs.** List new exports in `modules/events/module.json`, describe them in
++   `MODULE.md`, and move "reminders" out of "Not yet included". Run `pnpm catalog`.
++
++## Out of scope
++
++- Choosing or configuring an email provider beyond a single `sendEmail` function you inject.
++- Reminders for events without RSVPs, or more than one reminder per event.
++- An RSVP form on the site.
++
++## Acceptance criteria
++
++- [ ] Someone who RSVP'd gets exactly one email the day before the event, in the club's timezone.
++- [ ] Running the job twice on the same day sends nothing the second time.
++- [ ] Nobody who did not RSVP is emailed, and RSVP emails are never readable with the anon key.
++- [ ] All-day events (no `startTime`) are reminded the day before their date.
++- [ ] Tests cover the timezone edge (late evening in Toronto is already tomorrow in UTC).
++- [ ] `pnpm verify events` and `pnpm check` pass.
++
++## How to verify
++
++Run `pnpm verify events` after each change and `pnpm check` before opening the PR.
++
++## Open questions
++
++- Which email provider does the club use, and who owns the sending address?
++- What time of day should the job run? Assumed: 10:00 in the club's timezone.
++- Should people who RSVP less than a day before still get a reminder? Assumed: no.

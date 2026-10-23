@@ -10,6 +10,46 @@ These tasks measure how well an AI agent can use clubkit. The headline number is
 
 The gap between the two is the value of the agent-facing layer.
 
+## Tasks
+
+| Task | Modules | Kind |
+|---|---|---|
+| `applications-waitlist` | applications | Feature: new status through schema, pipeline, and database |
+| `applications-reviewer-scores` | applications | Feature: shared schema, private table, averaging |
+| `applications-reopen-position` | applications | Feature: hiring rounds without losing past decisions |
+| `applications-accepted-csv` | applications | Feature: CSV export that leaks nothing personal |
+| `applications-position-typos` | applications | Bug, loosely worded the way a non-technical exec would ask |
+| `events-multiday-hackathon` | events | Bug: multi-day `.ics` end dates |
+| `events-rsvp-storage` | events | Feature: RSVP storage with a cap, private table |
+| `events-recurring-weekly` | events | Feature: weekly series across DST and year end |
+| `events-upcoming-timezone` | events | Feature: "today" from an instant and a timezone |
+| `promote-sponsors` | sponsors | Promote a planned module |
+| `roster-promote` | roster | Promote a planned module; public team page, private emails |
+| `roster-exec-handoff` | roster | Promote, then add exec handoff with a dated record |
+| `event-page-sponsors` | events, sponsors | Cross-module: schema change in one, new export in the other |
+| `scope-rsvp-reminders` | events | Hand out work: write a scope, don't build |
+| `scope-decision-emails` | applications | Hand out work: write a scope, don't build |
+| `scope-sponsor-page` | sponsors | Hand out work, loosely worded |
+
+### Hand-out-work tasks
+
+`scope-*` tasks ask the agent to write a scope for someone else at
+`scopes/<name>.md` instead of building the feature. `hidden/support/scope.ts`
+checks every scope the same way:
+
+- Only the scope file changed: the agent delegated, it didn't build.
+- 200–2000 words, a title, and no placeholders.
+- Sections for the goal or background, what to build, out of scope, acceptance
+  criteria (at least 3 items), and open questions or assumptions.
+- It names the right `modules/<name>`, every module or package it names
+  exists, and it says which verify command proves the work.
+- Task-specific facts: the requirements from the ask (e.g. "never twice") and
+  the repo constraints a newcomer would trip on (e.g. RSVPs aren't stored yet,
+  applicant data is service-role only).
+
+These are structural checks, so they catch a scope that is missing something,
+not one that is badly written.
+
 ## Running
 
 ```sh
@@ -52,6 +92,9 @@ Each task needs three files sharing one id:
 | `tasks/<id>.json` | `id`, `prompt` (all the agent sees), `modules` (for analysis), `checks` |
 | `hidden/<id>.eval.ts` | Vitest tests the agent never sees. Import modules with `../modules/...` paths |
 | `reference/<id>.patch` | A known-good solution, as `git diff` output against `HEAD` |
+
+Helpers shared by hidden tests go in `hidden/support/`. They are copied to
+`eval-hidden/support/`, so import them as `./support/<file>`.
 
 Write prompts the way a club exec would ask. Name an API only when the hidden
 tests depend on it. Then run both sanity checks.

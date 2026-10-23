@@ -1,0 +1,147 @@
+diff --git a/catalog.json b/catalog.json
+index 45830c0..a0405c3 100644
+--- a/catalog.json
++++ b/catalog.json
+@@ -10,7 +10,8 @@
+         "Open recruitment or hiring for a club",
+         "Validate an application submitted through a form",
+         "Move an applicant through review, interview, and decision",
+-        "Summarize where applicants are in the pipeline"
++        "Summarize where applicants are in the pipeline",
++        "Reopen a closed position for a new round of applications"
+       ],
+       "requires": [],
+       "schemas": [
+diff --git a/modules/applications/MODULE.md b/modules/applications/MODULE.md
+index c1a51b5..d3cecfe 100644
+--- a/modules/applications/MODULE.md
++++ b/modules/applications/MODULE.md
+@@ -8,7 +8,10 @@ and private storage.
+ - Accepting a submission: `parseApplication(input, { deadline })`.
+ - Moving an applicant forward: `transition(application, "interview")`.
+ - Asking what moves are legal: `allowedTransitions(status)`.
+-- Reporting progress: `pipelineSummary(applications, position?)`.
++- Reporting progress: `pipelineSummary(applications, position?, round?)`.
++- Reopening a closed position: give new submissions `round: nextRound(applications, position)`
++  and a new `deadline`. Earlier rounds keep their decisions, and someone rejected in
++  one round can apply again in the next.
+ 
+ ## The pipeline
+ 
+@@ -30,7 +33,8 @@ prompt ids to text, so each club defines its questions without schema changes.
+ 
+ Storage: `migrations/0001_applications.sql` creates `public.applications` and a
+ private `application-resumes` bucket. There are no RLS policies: only the
+-service role can read or write.
++service role can read or write. `migrations/0002_application_rounds.sql` adds
++`round` and makes an email unique per position per round.
+ 
+ ## Rules for agents
+ 
+diff --git a/modules/applications/migrations/0002_application_rounds.sql b/modules/applications/migrations/0002_application_rounds.sql
+new file mode 100644
+index 0000000..549bd01
+--- /dev/null
++++ b/modules/applications/migrations/0002_application_rounds.sql
+@@ -0,0 +1,8 @@
++-- Hiring rounds: a closed position can reopen without touching earlier decisions.
++-- The same email may apply once per position per round.
++alter table public.applications
++  add column if not exists round integer not null default 1 check (round > 0);
++
++alter table public.applications drop constraint if exists applications_email_position_key;
++alter table public.applications
++  add constraint applications_email_position_round_key unique (email, position, round);
+diff --git a/modules/applications/module.json b/modules/applications/module.json
+index fd0866b..9f2206c 100644
+--- a/modules/applications/module.json
++++ b/modules/applications/module.json
+@@ -7,12 +7,13 @@
+     "Open recruitment or hiring for a club",
+     "Validate an application submitted through a form",
+     "Move an applicant through review, interview, and decision",
+-    "Summarize where applicants are in the pipeline"
++    "Summarize where applicants are in the pipeline",
++    "Reopen a closed position for a new round of applications"
+   ],
+   "provides": {
+     "schemas": ["Application"],
+-    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary"],
+-    "migrations": ["migrations/0001_applications.sql"]
++    "exports": ["parseApplication", "allowedTransitions", "transition", "pipelineSummary", "nextRound"],
++    "migrations": ["migrations/0001_applications.sql", "migrations/0002_application_rounds.sql"]
+   },
+   "requires": [],
+   "config": {
+diff --git a/modules/applications/src/applications.test.ts b/modules/applications/src/applications.test.ts
+index a2a4bc7..e6aabf4 100644
+--- a/modules/applications/src/applications.test.ts
++++ b/modules/applications/src/applications.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from "vitest";
+ import type { Application } from "@clubkit/schemas";
+-import { allowedTransitions, parseApplication, pipelineSummary, transition } from "./index";
++import { allowedTransitions, nextRound, parseApplication, pipelineSummary, transition } from "./index";
+ 
+ const base: Application = {
+   id: "0b6f2b5e-3a3c-4d8e-9f0a-1c2d3e4f5a6b",
+@@ -46,4 +46,12 @@ describe("applications", () => {
+     expect(pipelineSummary(apps)).toMatchObject({ submitted: 1, reviewing: 1, accepted: 1, rejected: 0 });
+     expect(pipelineSummary(apps, "Developer")).toMatchObject({ submitted: 1, reviewing: 1, accepted: 0 });
+   });
++
++  it("reopens a position as a new round without touching past decisions", () => {
++    const apps: Application[] = [{ ...base, status: "rejected" }, { ...base, status: "submitted", round: 2 }];
++    expect(nextRound(apps, "Developer")).toBe(3);
++    expect(nextRound(apps, "Designer")).toBe(1);
++    expect(pipelineSummary(apps, "Developer", 1)).toMatchObject({ rejected: 1, submitted: 0 });
++    expect(pipelineSummary(apps, "Developer", 2)).toMatchObject({ rejected: 0, submitted: 1 });
++  });
+ });
+diff --git a/modules/applications/src/index.ts b/modules/applications/src/index.ts
+index a136d41..63d7c18 100644
+--- a/modules/applications/src/index.ts
++++ b/modules/applications/src/index.ts
+@@ -37,11 +37,27 @@ export function transition(application: Application, to: ApplicationStatus): App
+   return { ...application, status: to };
+ }
+ 
+-/** Count applications per status, optionally for one position. Every status appears, even at zero. */
+-export function pipelineSummary(applications: Application[], position?: string): Record<ApplicationStatus, number> {
++const roundOf = (application: Application) => application.round ?? 1;
++
++/**
++ * Count applications per status, optionally for one position and hiring round.
++ * Every status appears, even at zero.
++ */
++export function pipelineSummary(applications: Application[], position?: string, round?: number): Record<ApplicationStatus, number> {
+   const summary = Object.fromEntries(Object.keys(transitions).map((s) => [s, 0])) as Record<ApplicationStatus, number>;
+   for (const application of applications) {
+-    if (position === undefined || application.position === position) summary[application.status]++;
++    if (position !== undefined && application.position !== position) continue;
++    if (round !== undefined && roundOf(application) !== round) continue;
++    summary[application.status]++;
+   }
+   return summary;
+ }
++
++/**
++ * The round number to use when reopening `position`: one past the latest round
++ * anyone applied in, or 1 if nobody has. Past rounds and their decisions are untouched.
++ */
++export function nextRound(applications: Application[], position: string): number {
++  const rounds = applications.filter((a) => a.position === position).map(roundOf);
++  return rounds.length === 0 ? 1 : Math.max(...rounds) + 1;
++}
+diff --git a/packages/schemas/src/club.ts b/packages/schemas/src/club.ts
+index 1feb5d4..2df944f 100644
+--- a/packages/schemas/src/club.ts
++++ b/packages/schemas/src/club.ts
+@@ -54,6 +54,7 @@ export const ApplicationSchema = z.object({
+   resumePath: z.string().optional(),
+   consent: z.literal(true),
+   status: ApplicationStatusSchema,
++  round: z.number().int().positive().optional().describe("Hiring round for this position; missing means round 1"),
+ });
+ export type Application = z.infer<typeof ApplicationSchema>;
+ 
