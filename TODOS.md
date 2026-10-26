@@ -37,12 +37,32 @@ repeats it. That rule is what makes it safe to hand an agent the club's
 accounts, and it matters more, not less, when the person at the controls isn't
 technical.
 
-**Where it stands (2026-10-25):** three working modules, an MCP server, a CLI
-and manifest validator, three playbooks, and an eval runner with 24 tasks.
-`modules/outbox` (draft → approve → send once) and `pnpm clubkit
-close-recruitment` work against a fake email adapter, and `club.config.json`
-holds a club's approvers, channels, and templates. No real integration, no approval surface outside the CLI. No club runs on it yet; QWeb
-is the first target.
+**Where it stands (2026-10-25):** three working modules (`events`,
+`applications`, `outbox`), an MCP server, a CLI and manifest validator, three
+playbooks, and an eval runner with 24 tasks. Section 1 is two foundations in:
+
+- **Club config** (`29ca8ed`): `club.config.json` holds a club's approvers,
+  channels, templates, and module settings; `pnpm clubkit config check` validates
+  it. `close-recruitment` reads its templates from it, and `outbox approve` only
+  accepts listed approvers.
+- **Integration contract** (`04202c5`): every provider is an `Adapter<T>` with
+  `live`, `fake`, and `dry-run` modes; `pnpm clubkit outbox send --dry-run`
+  previews without sending.
+
+Still missing: any real integration (email and Discord are fakes only), an
+approval surface outside the CLI, and a club running on it. QWeb is the first
+target. `pnpm check` passes (51 tests).
+
+**Pick up here:** the Discord integration, next in section 1. Before writing it:
+
+- The outbox only holds emails (`to` is an email address). Posts to a channel
+  need a schema change in `packages/schemas` and a new
+  `modules/outbox/migrations/0002_<change>.sql`. Never edit `0001_outbox.sql`.
+- Build it in `integrations/discord` against the contract in
+  `docs/integration-spec.md`: fake first, live adapter second. Add
+  `integrations/*` to `pnpm-workspace.yaml` and `tsconfig.json`.
+- Live testing needs a test Discord server and bot token in `.env`, so get those
+  from Alex. Check whether QWeb uses Discord or Slack more before committing to Discord.
 
 Work top to bottom. The first milestone is one flow a non-technical QWeb exec
 can use for real.
