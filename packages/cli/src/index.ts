@@ -1,5 +1,5 @@
 import { findModule, loadModules, verifyModule, writeCatalog } from "@clubkit/catalog";
-import { closeRecruitment, outbox, workflowUsage } from "./workflows";
+import { closeRecruitment, config, outbox, workflowUsage } from "./workflows";
 
 const usage = `Usage: pnpm clubkit <command>
 
@@ -16,6 +16,7 @@ async function main(argv: string[]): Promise<number> {
   const [command, arg] = argv;
   if (command === "close-recruitment") return closeRecruitment(argv.slice(1));
   if (command === "outbox") return outbox(argv.slice(1));
+  if (command === "config") return config(argv.slice(1));
   const { modules, problems } = loadModules();
 
   switch (command) {

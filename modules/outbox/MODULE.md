@@ -13,6 +13,7 @@ drafts it, a named exec approves it, then it is sent exactly once.
 - Tests: `createFakeEmail()` delivers to memory; `failOn` simulates a provider failure.
 
 From the command line: `pnpm clubkit outbox list|approve|send --outbox <file>`.
+With a club config, `outbox approve --by` accepts only the config's `approvers`.
 
 ## The lifecycle
 

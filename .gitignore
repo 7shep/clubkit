@@ -6,3 +6,6 @@ dist/
 *.log
 .DS_Store
 evals/results/
+
+# A club's own settings; commit club.config.example.json instead
+club.config.json

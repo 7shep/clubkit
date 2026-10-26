@@ -13,6 +13,8 @@ clubkit is built to be used by agents. Find what you need instead of reading eve
 ## Conventions
 
 - Shared data shapes live only in `packages/schemas`. See `docs/module-spec.md`.
+- One club's settings (approvers, channels, templates, timezone) live in `club.config.json`.
+  See `docs/club-config.md`; check it with `pnpm clubkit config check`.
 - `catalog.json` is generated; run `pnpm catalog` after editing any manifest.
 - Modules with `status: "planned"` are docs only. Do not import them.
 - Never edit a migration that is already in the repo: clubs may have applied it. Add the next

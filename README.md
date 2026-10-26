@@ -18,8 +18,10 @@ packages/cli          `pnpm clubkit` commands
 packages/mcp          MCP server exposing the catalog, docs, skills, and verify
 packages/evals        eval runner: isolated worktrees, agents, hidden tests, scoring
 skills/               step-by-step playbooks for club tasks
+club.config.example.json  one club's settings, as a fictional example
 evals/                tasks, hidden tests, and reference solutions for agent evals
 docs/module-spec.md   the module contract
+docs/club-config.md   the club config: fields, checks, and how modules read it
 ```
 
 ## Modules
@@ -38,6 +40,7 @@ pnpm clubkit list      # modules and status
 pnpm catalog           # validate manifests and regenerate catalog.json
 pnpm verify [module]   # run module verify commands
 pnpm check             # typecheck + validate + tests
+pnpm clubkit config check  # check club.config.json against the module manifests
 pnpm mcp               # start the MCP server on stdio
 pnpm eval --help       # measure agent success with and without clubkit's agent layer
 ```

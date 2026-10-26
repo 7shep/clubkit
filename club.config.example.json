@@ -1,0 +1,29 @@
+{
+  "name": "Example Web Development Club",
+  "shortName": "ExWeb",
+  "timezone": "America/Toronto",
+  "websiteUrl": "https://example.org",
+  "approvers": [
+    { "name": "Priya Shah", "role": "President", "discordId": "100000000000000001" },
+    { "name": "Sam Lee", "role": "VP Operations", "slackId": "U000EXAMPLE" }
+  ],
+  "channels": {
+    "announcements": { "platform": "discord", "id": "200000000000000001", "name": "#announcements" },
+    "approvals": { "platform": "discord", "id": "200000000000000002", "name": "#exec-approvals" }
+  },
+  "positions": ["Developer", "Designer", "Events Coordinator"],
+  "templates": {
+    "decision-accepted": {
+      "subject": "Welcome to ExWeb, {{firstName}}!",
+      "body": "Hi {{firstName}},\n\nWe're thrilled to offer you the {{position}} role. More details soon.\n\nThe ExWeb execs"
+    },
+    "decision-rejected": {
+      "subject": "Your ExWeb application",
+      "body": "Hi {{firstName}},\n\nThank you for applying for {{position}}. We couldn't offer you a spot this time, and we hope you'll apply again.\n\nThe ExWeb execs"
+    }
+  },
+  "branding": { "primaryColor": "#1f6feb" },
+  "modules": {
+    "applications": { "deadline": "2026-11-15T23:59:00-05:00" }
+  }
+}

@@ -40,8 +40,8 @@ technical.
 **Where it stands (2026-10-25):** three working modules, an MCP server, a CLI
 and manifest validator, three playbooks, and an eval runner with 24 tasks.
 `modules/outbox` (draft → approve → send once) and `pnpm clubkit
-close-recruitment` work against a fake email adapter. No club config, no real
-integration, no approval surface outside the CLI. No club runs on it yet; QWeb
+close-recruitment` work against a fake email adapter, and `club.config.json`
+holds a club's approvers, channels, and templates. No real integration, no approval surface outside the CLI. No club runs on it yet; QWeb
 is the first target.
 
 Work top to bottom. The first milestone is one flow a non-technical QWeb exec
@@ -53,9 +53,10 @@ Events data → drafted announcement → exec approves in Discord/Slack → post
 once → logged. It needs every foundation below, and a QWeb exec can use it the
 week it works.
 
-- [ ] **Club config:** `club.config.json` (name, timezone, approvers, channels, templates, branding),
-      with its shape in `packages/schemas` and validated against module manifests. Module `config`
-      fields read from it.
+- [x] **Club config:** `club.config.json` (name, timezone, approvers, channels, templates, branding),
+      `ClubConfigSchema` in `packages/schemas`, checked against module manifests by
+      `pnpm clubkit config check`. Module settings resolve through `moduleConfig`; `close-recruitment`
+      reads its templates and `outbox approve` its approvers from it. See `docs/club-config.md`.
 - [ ] **Integration contract:** each integration is an injected adapter with a real implementation,
       a fake for tests, and a dry-run mode. Shapes live in `packages/schemas`. A real adapter passes
       the outbox message `key` as the provider's idempotency key where the provider supports one.

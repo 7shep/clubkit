@@ -7,6 +7,7 @@ import { ModuleManifestSchema, sharedSchemas, type ModuleManifest } from "@clubk
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 export const modulesDir = join(repoRoot, "modules");
 export const catalogPath = join(repoRoot, "catalog.json");
+export const clubConfigPath = join(repoRoot, "club.config.json");
 
 export interface LoadedModule {
   dir: string;
@@ -146,3 +147,5 @@ export function verifyModule(module: LoadedModule): Promise<VerifyResult> {
     });
   });
 }
+
+export { checkModuleConfig, findApprover, loadClubConfig, moduleConfig } from "./config";

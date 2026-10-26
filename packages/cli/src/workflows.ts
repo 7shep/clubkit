@@ -1,9 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { decisionEmails, pipelineSummary } from "@clubkit/applications";
+import { clubConfigPath, findApprover, loadClubConfig, loadModules } from "@clubkit/catalog";
 import { approve, draft, outboxSummary, sendApproved } from "@clubkit/outbox";
 import {
   ApplicationSchema,
+  type ClubConfig,
   EmailTemplateSchema,
   OutboxMessageSchema,
   type EmailAdapter,
@@ -15,18 +17,54 @@ import { z } from "zod";
 // Workflow commands. Each follows the same shape: work out what's needed, draft,
 // an exec approves, send, report counts. Output names no applicants, so it can be pasted anywhere.
 
-export const workflowUsage = `  close-recruitment --applications <file> --templates <file> --outbox <file>
-                    Draft one decision email per accepted or rejected applicant. Sends nothing
+export const workflowUsage = `  config check [--config <file>]
+                    Check the club config against the module manifests
+  close-recruitment --applications <file> --outbox <file> [--templates <file>]
+                    Draft one decision email per accepted or rejected applicant. Sends nothing.
+                    Templates default to the club config's decision-accepted and decision-rejected
   outbox list --outbox <file> [--status draft|approved|sent]
                     Show messages in full, for an exec to read before approving
   outbox approve --outbox <file> --by <exec name> [--key <key>]...
-                    Approve drafts as the named exec who read them
+                    Approve drafts as the named exec who read them; must be a club config approver
   outbox send --outbox <file> --fake <mailbox file>
-                    Send approved messages once. No email provider is set up yet: --fake delivers to a file`;
+                    Send approved messages once. No email provider is set up yet: --fake delivers to a file
+
+  Commands read club.config.json from the repo root when it exists, or the file given with --config.`;
 
 const readJson = (path: string) => JSON.parse(readFileSync(path, "utf8")) as unknown;
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value, null, 2) + "\n");
 const readOutbox = (path: string): OutboxMessage[] => (existsSync(path) ? z.array(OutboxMessageSchema).parse(readJson(path)) : []);
+
+/** The club config at `path`, else club.config.json if present, else none. Throws listing every problem. */
+function clubConfig(path?: string): ClubConfig | undefined {
+  if (!path && !existsSync(clubConfigPath)) return undefined;
+  const { config, problems } = loadClubConfig(path ?? clubConfigPath, loadModules().modules);
+  if (!config || problems.length > 0) {
+    throw new Error(`Club config has problems; fix them and re-run:\n${problems.map((p) => `  ${p.message}`).join("\n")}`);
+  }
+  return config;
+}
+
+export function config(argv: string[]): number {
+  const [subcommand, ...rest] = argv;
+  if (subcommand !== "check") {
+    console.log(`Usage:\n${workflowUsage}`);
+    return subcommand ? 1 : 0;
+  }
+  const { values } = parseArgs({ args: rest, options: { config: { type: "string" } } });
+  const path = values.config ?? clubConfigPath;
+  const { config, problems } = loadClubConfig(path, loadModules().modules);
+  if (!config || problems.length > 0) {
+    for (const p of problems) console.error(`✗ ${p.message}`);
+    return 1;
+  }
+  const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+  console.log(
+    `✓ ${config.shortName ?? config.name} (${config.timezone}): ${count(config.approvers.length, "approver")}, ` +
+      `${count(Object.keys(config.channels).length, "channel")}, ${count(Object.keys(config.templates).length, "template")}`,
+  );
+  return 0;
+}
 
 function required(values: Record<string, unknown>, ...names: string[]): void {
   const missing = names.filter((n) => typeof values[n] !== "string" || values[n] === "");
@@ -34,10 +72,13 @@ function required(values: Record<string, unknown>, ...names: string[]): void {
 }
 
 export function closeRecruitment(argv: string[]): number {
-  const { values } = parseArgs({ args: argv, options: { applications: { type: "string" }, templates: { type: "string" }, outbox: { type: "string" } } });
-  required(values, "applications", "templates", "outbox");
+  const { values } = parseArgs({
+    args: argv,
+    options: { applications: { type: "string" }, templates: { type: "string" }, outbox: { type: "string" }, config: { type: "string" } },
+  });
+  required(values, "applications", "outbox");
   const applications = z.array(ApplicationSchema).parse(readJson(values.applications!));
-  const templates = z.object({ accepted: EmailTemplateSchema, rejected: EmailTemplateSchema }).parse(readJson(values.templates!));
+  const templates = z.object({ accepted: EmailTemplateSchema, rejected: EmailTemplateSchema }).parse(decisionTemplates(values.templates, values.config));
 
   const result = draft(readOutbox(values.outbox!), decisionEmails(applications, templates));
   writeJson(values.outbox!, result.outbox);
@@ -59,6 +100,18 @@ export function closeRecruitment(argv: string[]): number {
   pnpm clubkit outbox list --outbox ${values.outbox} --status draft
   pnpm clubkit outbox approve --outbox ${values.outbox} --by "<exec name>"`);
   return 0;
+}
+
+/** Decision templates from --templates, else the club config's decision-accepted and decision-rejected. */
+function decisionTemplates(templatesPath?: string, configPath?: string): unknown {
+  if (templatesPath) return readJson(templatesPath);
+  const templates = clubConfig(configPath)?.templates;
+  if (!templates?.["decision-accepted"] || !templates["decision-rejected"]) {
+    throw new Error(
+      "No decision templates. Pass --templates <file>, or add decision-accepted and decision-rejected under templates in club.config.json",
+    );
+  }
+  return { accepted: templates["decision-accepted"], rejected: templates["decision-rejected"] };
 }
 
 /** Delivers to a JSON file instead of sending, until the club picks an email provider. */
@@ -83,6 +136,7 @@ export async function outbox(argv: string[]): Promise<number> {
       by: { type: "string" },
       key: { type: "string", multiple: true },
       fake: { type: "string" },
+      config: { type: "string" },
     },
   });
   required(values, "outbox");
@@ -102,9 +156,17 @@ export async function outbox(argv: string[]): Promise<number> {
 
     case "approve": {
       required(values, "by");
-      const approved = approve(messages, values.by!, { keys: values.key });
+      const club = clubConfig(values.config);
+      // With a club config, only a listed approver may approve, recorded under their configured name.
+      let by = values.by!;
+      if (club) {
+        const approver = findApprover(club, by);
+        if (!approver) throw new Error(`"${by}" is not an approver in the club config. Approvers: ${club.approvers.map((a) => a.name).join(", ")}`);
+        by = approver.name;
+      }
+      const approved = approve(messages, by, { keys: values.key });
       writeJson(path, approved);
-      console.log(`${values.by} approved ${outboxSummary(approved).approved - outboxSummary(messages).approved} messages. Send them with pnpm clubkit outbox send`);
+      console.log(`${by} approved ${outboxSummary(approved).approved - outboxSummary(messages).approved} messages. Send them with pnpm clubkit outbox send`);
       return 0;
     }
 
