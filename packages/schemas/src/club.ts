@@ -90,11 +90,6 @@ export type OutboxMessage = z.infer<typeof OutboxMessageSchema>;
 /** What a workflow drafts and what an email adapter sends: a message without its outbox state. */
 export type OutgoingEmail = Pick<OutboxMessage, "key" | "to" | "subject" | "body">;
 
-/** Sends one email. Real providers and the test fake implement it; workflows receive it injected. */
-export interface EmailAdapter {
-  send(email: OutgoingEmail): Promise<{ id: string }>;
-}
-
 export const EmailTemplateSchema = z.object({
   subject: z.string().min(1),
   body: z.string().min(1).describe("Text with {{field}} placeholders, e.g. {{firstName}}"),

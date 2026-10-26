@@ -31,9 +31,12 @@ content: a reworded template must not produce a second email.
 Shapes: `OutboxMessage`, `OutgoingEmail`, `EmailAdapter`, and `EmailTemplate`
 from `@clubkit/schemas`. Functions return a new outbox; the caller stores it.
 
-Sending goes through an injected `EmailAdapter`. No real provider is wired up
-yet, so `outbox send` needs `--fake <file>`, which delivers to a JSON file. A real
-adapter must pass `key` to the provider as its idempotency key.
+Sending goes through an injected `EmailAdapter` (see `docs/integration-spec.md`).
+With a `dry-run` adapter, `sendApproved` passes every approved message to it and
+returns them in `previewed`, leaving them `approved`. No real provider is wired
+up yet, so `outbox send` needs `--dry-run` (preview, changes nothing) or
+`--fake <file>` (delivers to a JSON file and marks them sent). A real adapter
+must pass `key` to the provider as its idempotency key.
 
 Storage: `migrations/0001_outbox.sql` creates `public.outbox` with RLS on and no
 policies: messages hold names and email addresses, so only the service role can read them.

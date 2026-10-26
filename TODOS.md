@@ -57,9 +57,10 @@ week it works.
       `ClubConfigSchema` in `packages/schemas`, checked against module manifests by
       `pnpm clubkit config check`. Module settings resolve through `moduleConfig`; `close-recruitment`
       reads its templates and `outbox approve` its approvers from it. See `docs/club-config.md`.
-- [ ] **Integration contract:** each integration is an injected adapter with a real implementation,
-      a fake for tests, and a dry-run mode. Shapes live in `packages/schemas`. A real adapter passes
-      the outbox message `key` as the provider's idempotency key where the provider supports one.
+- [x] **Integration contract:** `Adapter<T>` with `live`, `fake`, and `dry-run` modes in
+      `packages/schemas`; `createRecorder`, `createFileRecorder`, and `requireEnv` in
+      `packages/integrations`; dry runs leave the outbox unchanged (`outbox send --dry-run`).
+      See `docs/integration-spec.md`.
 - [ ] **Discord integration:** post to a channel through a bot (pick Discord or Slack first, whichever
       QWeb uses most; the other follows the same contract).
 - [ ] **Approval surface:** the outbox posts each draft to a private exec channel with Approve / Reject

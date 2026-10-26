@@ -14,6 +14,7 @@ catalog.json          generated index of modules: agents read this first
 modules/              one folder per capability (module.json + MODULE.md + src)
 packages/schemas      shared Zod contracts: Member, Event, Application, Sponsor, manifests
 packages/catalog      loads, validates, and verifies modules
+packages/integrations shared adapter helpers: fakes, dry runs, credential checks
 packages/cli          `pnpm clubkit` commands
 packages/mcp          MCP server exposing the catalog, docs, skills, and verify
 packages/evals        eval runner: isolated worktrees, agents, hidden tests, scoring
@@ -22,6 +23,7 @@ club.config.example.json  one club's settings, as a fictional example
 evals/                tasks, hidden tests, and reference solutions for agent evals
 docs/module-spec.md   the module contract
 docs/club-config.md   the club config: fields, checks, and how modules read it
+docs/integration-spec.md  the adapter contract every integration follows
 ```
 
 ## Modules

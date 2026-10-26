@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OutboxMessageSchema, type OutboxMessage, type OutgoingEmail } from "@clubkit/schemas";
+import { createRecorder } from "@clubkit/integrations";
 import { approve, createFakeEmail, draft, outboxSummary, renderTemplate, sendApproved } from "./index";
 
 const email = (n: number): OutgoingEmail => ({
@@ -46,7 +47,7 @@ describe("outbox", () => {
     const fake = createFakeEmail();
     const first = await sendApproved(approved, fake, { now: () => now });
     expect(fake.delivered.map((e) => e.key)).toEqual(["decision:1"]);
-    expect(first.outbox[0]).toMatchObject({ status: "sent", sentAt: now.toISOString(), providerId: "fake-1" });
+    expect(first.outbox[0]).toMatchObject({ status: "sent", sentAt: now.toISOString(), providerId: "fake-email-1" });
     expect(first.outbox[1].status).toBe("draft");
 
     const second = await sendApproved(first.outbox, fake);
@@ -67,6 +68,18 @@ describe("outbox", () => {
     const second = await sendApproved(first.outbox, fake);
     expect(fake.delivered.map((e) => e.key)).toEqual(["decision:2", "decision:3"]);
     expect(outboxSummary(second.outbox)).toEqual({ draft: 0, approved: 0, sent: 3 });
+  });
+
+  it("previews a dry run: the adapter sees every approved message and none is marked sent", async () => {
+    const approved = approve(draft([], [email(1), email(2)], now).outbox, "Priya", { keys: ["decision:2"] });
+    const preview = createRecorder<OutgoingEmail>("email", "dry-run");
+    const saved: OutboxMessage[][] = [];
+    const result = await sendApproved(approved, preview, { onSent: (o) => void saved.push(o) });
+    expect(preview.delivered.map((e) => e.key)).toEqual(["decision:2"]);
+    expect(result.previewed.map((m) => m.key)).toEqual(["decision:2"]);
+    expect(result.sent).toEqual([]);
+    expect(result.outbox).toEqual(approved);
+    expect(saved).toEqual([]);
   });
 
   it("fills templates and names the fields when a placeholder has no value", () => {

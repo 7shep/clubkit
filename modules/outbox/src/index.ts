@@ -1,3 +1,4 @@
+import { createRecorder, type Recorder } from "@clubkit/integrations";
 import {
   OutboxStatusSchema,
   type EmailAdapter,
@@ -60,28 +61,34 @@ export function approve(
  * failure and returns what was sent so far, so the caller can save progress and re-run.
  * `onSent` runs after each send with the updated outbox; save it there to survive a crash.
  * Each email carries its key, which a real adapter passes to the provider as an idempotency key.
+ * A dry-run adapter receives every approved message, and they come back in `previewed`, still approved.
  */
 export async function sendApproved(
   outbox: OutboxMessage[],
   email: EmailAdapter,
   options: { now?: () => Date; onSent?: (outbox: OutboxMessage[]) => void | Promise<void> } = {},
-): Promise<{ outbox: OutboxMessage[]; sent: OutboxMessage[]; error?: Error }> {
+): Promise<{ outbox: OutboxMessage[]; sent: OutboxMessage[]; previewed: OutboxMessage[]; error?: Error }> {
   const now = options.now ?? (() => new Date());
   let current = outbox;
   const sent: OutboxMessage[] = [];
+  const previewed: OutboxMessage[] = [];
   for (const message of outbox) {
     if (message.status !== "approved") continue;
     try {
       const { id } = await email.send({ key: message.key, to: message.to, subject: message.subject, body: message.body });
+      if (email.mode === "dry-run") {
+        previewed.push(message);
+        continue;
+      }
       const done: OutboxMessage = { ...message, status: "sent", sentAt: now().toISOString(), providerId: id };
       current = current.map((m) => (m.key === message.key ? done : m));
       sent.push(done);
       await options.onSent?.(current);
     } catch (error) {
-      return { outbox: current, sent, error: error instanceof Error ? error : new Error(String(error)) };
+      return { outbox: current, sent, previewed, error: error instanceof Error ? error : new Error(String(error)) };
     }
   }
-  return { outbox: current, sent };
+  return { outbox: current, sent, previewed };
 }
 
 /** Fill `{{field}}` placeholders. Throws on a placeholder with no value, naming the fields available. */
@@ -102,16 +109,6 @@ export function outboxSummary(outbox: OutboxMessage[]): Record<OutboxStatus, num
 }
 
 /** An email adapter that delivers to memory instead of sending. `failOn` makes chosen sends throw. */
-export function createFakeEmail(options: { failOn?: (email: OutgoingEmail) => boolean } = {}): EmailAdapter & {
-  delivered: OutgoingEmail[];
-} {
-  const delivered: OutgoingEmail[] = [];
-  return {
-    delivered,
-    async send(email) {
-      if (options.failOn?.(email)) throw new Error(`Fake email failure sending ${email.key}`);
-      delivered.push(email);
-      return { id: `fake-${delivered.length}` };
-    },
-  };
+export function createFakeEmail(options: { failOn?: (email: OutgoingEmail) => boolean } = {}): Recorder<OutgoingEmail> {
+  return createRecorder<OutgoingEmail>("email", "fake", options);
 }

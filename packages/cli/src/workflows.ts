@@ -2,13 +2,13 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { decisionEmails, pipelineSummary } from "@clubkit/applications";
 import { clubConfigPath, findApprover, loadClubConfig, loadModules } from "@clubkit/catalog";
+import { createFileRecorder, createRecorder } from "@clubkit/integrations";
 import { approve, draft, outboxSummary, sendApproved } from "@clubkit/outbox";
 import {
   ApplicationSchema,
   type ClubConfig,
   EmailTemplateSchema,
   OutboxMessageSchema,
-  type EmailAdapter,
   type OutboxMessage,
   type OutgoingEmail,
 } from "@clubkit/schemas";
@@ -26,8 +26,9 @@ export const workflowUsage = `  config check [--config <file>]
                     Show messages in full, for an exec to read before approving
   outbox approve --outbox <file> --by <exec name> [--key <key>]...
                     Approve drafts as the named exec who read them; must be a club config approver
-  outbox send --outbox <file> --fake <mailbox file>
-                    Send approved messages once. No email provider is set up yet: --fake delivers to a file
+  outbox send --outbox <file> (--dry-run | --fake <mailbox file>)
+                    Send approved messages once. No email provider is set up yet: --dry-run previews
+                    what would go out and changes nothing; --fake delivers to a file and marks them sent
 
   Commands read club.config.json from the repo root when it exists, or the file given with --config.`;
 
@@ -114,18 +115,6 @@ function decisionTemplates(templatesPath?: string, configPath?: string): unknown
   return { accepted: templates["decision-accepted"], rejected: templates["decision-rejected"] };
 }
 
-/** Delivers to a JSON file instead of sending, until the club picks an email provider. */
-function fileMailbox(path: string): EmailAdapter {
-  return {
-    async send(email) {
-      const delivered = existsSync(path) ? (readJson(path) as OutgoingEmail[]) : [];
-      delivered.push(email);
-      writeJson(path, delivered);
-      return { id: `fake-${delivered.length}` };
-    },
-  };
-}
-
 export async function outbox(argv: string[]): Promise<number> {
   const [subcommand, ...rest] = argv;
   const { values } = parseArgs({
@@ -136,6 +125,7 @@ export async function outbox(argv: string[]): Promise<number> {
       by: { type: "string" },
       key: { type: "string", multiple: true },
       fake: { type: "string" },
+      "dry-run": { type: "boolean" },
       config: { type: "string" },
     },
   });
@@ -171,8 +161,17 @@ export async function outbox(argv: string[]): Promise<number> {
     }
 
     case "send": {
-      if (!values.fake) throw new Error("No email provider is set up yet. Pass --fake <mailbox file> to deliver to a file instead");
-      const result = await sendApproved(messages, fileMailbox(values.fake), { onSent: (o) => writeJson(path, o) });
+      if (values["dry-run"]) {
+        const preview = createRecorder<OutgoingEmail>("email", "dry-run");
+        const result = await sendApproved(messages, preview);
+        for (const m of result.previewed) console.log(`[would send] ${m.key} (approved by ${m.approvedBy})\nTo: ${m.to}\nSubject: ${m.subject}\n`);
+        console.log(`Dry run: ${result.previewed.length} messages would be sent. Nothing was sent and the outbox is unchanged.`);
+        return 0;
+      }
+      if (!values.fake) {
+        throw new Error("No email provider is set up yet. Pass --dry-run to preview, or --fake <mailbox file> to deliver to a file instead");
+      }
+      const result = await sendApproved(messages, createFileRecorder<OutgoingEmail>("email", values.fake), { onSent: (o) => writeJson(path, o) });
       writeJson(path, result.outbox);
       console.log(`Sent ${result.sent.length} messages. ${outboxSummary(result.outbox).draft} drafts still need approval.`);
       if (result.error) {

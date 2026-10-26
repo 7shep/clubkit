@@ -2,4 +2,5 @@
 // these shapes, so agents can compose modules without reading their internals.
 export * from "./club";
 export * from "./config";
+export * from "./integrations";
 export * from "./manifest";

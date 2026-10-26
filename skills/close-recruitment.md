@@ -21,6 +21,7 @@ Shape: decide → draft → an exec approves → send → report counts.
    `pnpm clubkit outbox approve --outbox <file> --by "<their name>"`.
    With a club config, only a listed approver can approve.
 4. **Send.** Only after approval: `pnpm clubkit outbox send --outbox <file>`.
+   `--dry-run` first shows the exec exactly what would go out and changes nothing.
    If it stops at a failure, re-run it; sent messages are never sent again.
 5. **Report counts.** Drafted, sent, skipped as already sent, withdrawn, and
    undecided. Never names or email addresses in a public channel.
